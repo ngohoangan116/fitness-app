@@ -1,0 +1,342 @@
+// Tự soạn lịch tập (workout_plans + plan_exercises) cho TOÀN BỘ 96 tổ hợp
+// plan_id mà lib/planLogic.ts có thể sinh ra (4 mục tiêu × 3 dụng cụ ×
+// 4 mức số buổi/tuần × 2 trình độ beginner/advanced), lấy bài tập từ kho lớn đã seed ở
+// scripts/seed-exercise-library.mjs — thay vì chỉ vài bài mẫu lặp lại.
+//
+// Chạy SAU khi đã seed kho bài tập:
+//   node scripts/generate-plan-exercises.mjs
+//
+// Script này XOÁ TRẮNG plan_exercises/workout_plans hiện có rồi tạo lại từ
+// đầu (idempotent) — an toàn để chạy lại nhiều lần khi bạn muốn "làm mới"
+// bộ lịch. Không đụng tới orders/user_progress/exercises.
+
+import { createClient } from "@supabase/supabase-js";
+import { readFileSync, existsSync } from "node:fs";
+
+function loadEnvLocal() {
+  const path = new URL("../.env.local", import.meta.url);
+  if (!existsSync(path)) return;
+  for (const line of readFileSync(path, "utf8").split("\n")) {
+    const trimmed = line.trim();
+    if (!trimmed || trimmed.startsWith("#")) continue;
+    const eq = trimmed.indexOf("=");
+    if (eq === -1) continue;
+    const key = trimmed.slice(0, eq).trim();
+    const val = trimmed.slice(eq + 1).trim().replace(/^["']|["']$/g, "");
+    if (!(key in process.env)) process.env[key] = val;
+  }
+}
+loadEnvLocal();
+
+const url = process.env.NEXT_PUBLIC_SUPABASE_URL;
+const serviceKey = process.env.SUPABASE_SERVICE_ROLE_KEY;
+if (!url || !serviceKey) {
+  console.error("Thiếu NEXT_PUBLIC_SUPABASE_URL hoặc SUPABASE_SERVICE_ROLE_KEY trong .env.local.");
+  process.exit(1);
+}
+const supabase = createClient(url, serviceKey, { auth: { persistSession: false } });
+
+// ---------- Giống hệt các tag trong lib/planLogic.ts (đừng đổi ở 1 chỗ mà quên chỗ kia) ----------
+const GOAL_TAGS = ["hypertrophy", "fatloss", "endurance", "maintenance"];
+const EQUIPMENT_TAGS = ["bodyweight", "home-dumbbell", "full-gym"];
+const DAYS_TAGS = ["2d", "3d", "4-5d", "6d"];
+// NEW: beginner = "Mới bắt đầu"/"Tập không đều" ở quiz — loại bài
+// olympic weightlifting / powerlifting và các bài cấp độ "expert" ra khỏi
+// lịch của nhóm này (khớp lib/planLogic.ts).
+const LEVEL_TAGS = ["beginner", "advanced"];
+const LEVEL_EXCLUDED_CATEGORIES = new Set(["olympic weightlifting", "powerlifting"]);
+
+const NAME_MAP = {
+  hypertrophy: "Gói Tăng Cơ",
+  fatloss: "Gói Đốt Mỡ",
+  endurance: "Gói Sức Bền",
+  maintenance: "Gói Duy Trì Vóc Dáng",
+};
+const SPLIT_LABEL_MAP = {
+  "2d": "Full Body",
+  "3d": "Full Body",
+  "4-5d": "Upper / Lower",
+  "6d": "Push / Pull / Legs",
+};
+// role + scheme (sets/reps) theo mục tiêu — khớp lib/planLogic.ts focus[]
+const GOAL_SCHEME = {
+  hypertrophy: { mainSets: 4, mainReps: "6-8", accSets: 3, accReps: "8-10", rest: 100 },
+  fatloss: { mainSets: 3, mainReps: "12-15", accSets: 3, accReps: "15", rest: 40 },
+  endurance: { mainSets: 3, mainReps: "15-20", accSets: 3, accReps: "15-20", rest: 45 },
+  maintenance: { mainSets: 3, mainReps: "10-12", accSets: 3, accReps: "10-12", rest: 60 },
+};
+const COACHING_NOTES = {
+  hypertrophy:
+    "Tăng dần mức tạ mỗi 1-2 tuần khi hoàn thành đủ số lần ở hiệp cuối. Ăn dư nhẹ calo, ngủ đủ 7-8h để phục hồi cơ.",
+  fatloss:
+    "Nghỉ ngắn giữa hiệp để giữ nhịp tim cao. Ưu tiên thâm hụt calo nhẹ (300-500 kcal/ngày), không cắt giảm đột ngột.",
+  endurance:
+    "Tập với tạ nhẹ hơn, tập trung kiểm soát kỹ thuật khi đã mỏi. Tăng dần số hiệp hoặc thời lượng theo tuần.",
+  maintenance:
+    "Cường độ vừa phải, ưu tiên tính đều đặn hơn là đẩy nặng. Lịch có thể linh hoạt đổi ngày trong tuần.",
+};
+
+// Dụng cụ được phép dùng theo equipmentTag (khớp mô tả trong planLogic.ts)
+const EQUIPMENT_ALLOW = {
+  bodyweight: new Set(["body only", null]),
+  "home-dumbbell": new Set(["body only", "dumbbell", "bands", "kettlebells", null]),
+  "full-gym": null, // null = cho phép tất cả
+};
+
+// Nhóm cơ -> bucket Push / Pull / Legs / Core (để chia lịch Upper/Lower, PPL)
+const MUSCLE_BUCKET = {
+  chest: "push",
+  shoulders: "push",
+  triceps: "push",
+  lats: "pull",
+  "middle back": "pull",
+  "lower back": "pull",
+  traps: "pull",
+  biceps: "pull",
+  forearms: "pull",
+  quadriceps: "legs",
+  hamstrings: "legs",
+  glutes: "legs",
+  calves: "legs",
+  abdominals: "core",
+  neck: "core",
+};
+
+// PRNG đơn giản, seed theo chuỗi để mỗi plan_id ra một tổ hợp bài ổn định
+// (chạy lại không đổi lịch) nhưng khác nhau giữa các gói -> đa dạng thật sự.
+function seedRandom(str) {
+  let h = 1779033703 ^ str.length;
+  for (let i = 0; i < str.length; i++) {
+    h = Math.imul(h ^ str.charCodeAt(i), 3432918353);
+    h = (h << 13) | (h >>> 19);
+  }
+  return function () {
+    h = Math.imul(h ^ (h >>> 16), 2246822507);
+    h = Math.imul(h ^ (h >>> 13), 3266489909);
+    h ^= h >>> 16;
+    return (h >>> 0) / 4294967296;
+  };
+}
+function pick(arr, n, rng) {
+  const copy = [...arr];
+  const out = [];
+  while (copy.length && out.length < n) {
+    const idx = Math.floor(rng() * copy.length);
+    out.push(copy.splice(idx, 1)[0]);
+  }
+  return out;
+}
+
+function filterPool(pool, equipmentTag, levelTag) {
+  const allow = EQUIPMENT_ALLOW[equipmentTag];
+  return pool.filter((ex) => {
+    if (ex.category === "stretching") return false;
+    if (levelTag === "beginner") {
+      if (LEVEL_EXCLUDED_CATEGORIES.has(ex.category)) return false;
+      if (ex.level === "expert") return false;
+    }
+    if (!allow) return true; // full-gym: mọi dụng cụ
+    return allow.has(ex.equipment);
+  });
+}
+
+function bucketOf(ex) {
+  return MUSCLE_BUCKET[ex.primary_muscle] || "core";
+}
+
+// Với 1 "buổi" (day), chọn bài theo các bucket mong muốn, ưu tiên
+// exercise.category === 'strength' | 'powerlifting' | 'olympic weightlifting'.
+function buildDay({ pool, buckets, rng, scheme, isCardioFinisher }) {
+  const rows = [];
+  let orderIndex = 1;
+  for (const { bucket, count, role } of buckets) {
+    const candidates = pool.filter((ex) => bucketOf(ex) === bucket && ex.category !== "cardio");
+    const chosen = pick(candidates, count, rng);
+    for (const ex of chosen) {
+      rows.push({
+        exercise_name: ex.name,
+        day_number: 1, // ghi đè bên ngoài
+        sets: role === "main" ? scheme.mainSets : scheme.accSets,
+        reps: role === "main" ? scheme.mainReps : scheme.accReps,
+        rest_seconds: role === "main" ? scheme.rest : Math.max(30, scheme.rest - 20),
+        role,
+        order_index: orderIndex++,
+      });
+    }
+  }
+  if (isCardioFinisher) {
+    const cardio = pool.filter((ex) => ex.category === "cardio");
+    const chosen = pick(cardio, 1, rng);
+    for (const ex of chosen) {
+      rows.push({
+        exercise_name: ex.name,
+        day_number: 1,
+        sets: 1,
+        reps: "10-15 phút",
+        rest_seconds: 0,
+        role: "cardio",
+        order_index: orderIndex++,
+      });
+    }
+  }
+  return rows;
+}
+
+// Sơ đồ bucket cho từng kiểu chia lịch. daysTag chỉ dùng để quyết định
+// Full Body cần mấy biến thể xoay vòng (A/B/C) — tránh lặp y hệt 1 buổi
+// khi tập tần suất cao (4-6 buổi/tuần đốt mỡ).
+function dayTemplatesFor(splitLabel, daysTag) {
+  if (splitLabel === "Full Body") {
+    const base = [
+      { bucket: "push", count: 2, role: "main" },
+      { bucket: "pull", count: 2, role: "main" },
+      { bucket: "legs", count: 2, role: "main" },
+      { bucket: "core", count: 1, role: "accessory" },
+    ];
+    // rng dùng chung xuyên suốt các buổi (xem seedRandom trong main()) nên
+    // dù lặp lại cùng 1 template, bài cụ thể chọn ra mỗi buổi vẫn khác nhau
+    // — nhân bản template chỉ để tạo đủ số "Buổi" cho khách xoay vòng.
+    const numVariants = daysTag === "6d" ? 3 : daysTag === "4-5d" ? 2 : 1;
+    return Array.from({ length: numVariants }, () => base);
+  }
+  if (splitLabel === "Upper / Lower") {
+    return [
+      [
+        { bucket: "push", count: 3, role: "main" },
+        { bucket: "pull", count: 3, role: "accessory" },
+        { bucket: "core", count: 1, role: "accessory" },
+      ],
+      [
+        { bucket: "legs", count: 4, role: "main" },
+        { bucket: "core", count: 1, role: "accessory" },
+      ],
+    ];
+  }
+  // Push / Pull / Legs
+  return [
+    [
+      { bucket: "push", count: 4, role: "main" },
+      { bucket: "core", count: 1, role: "accessory" },
+    ],
+    [
+      { bucket: "pull", count: 4, role: "main" },
+      { bucket: "core", count: 1, role: "accessory" },
+    ],
+    [
+      { bucket: "legs", count: 4, role: "main" },
+      { bucket: "core", count: 1, role: "accessory" },
+    ],
+  ];
+}
+
+async function main() {
+  console.log("Đang tải kho bài tập từ Supabase...");
+  const { data: pool, error: poolErr } = await supabase
+    .from("exercises")
+    .select("id, name, equipment, category, primary_muscle, level");
+  if (poolErr) throw poolErr;
+  if (!pool || pool.length < 50) {
+    console.error(
+      "Kho bài tập còn quá ít. Chạy `node scripts/seed-exercise-library.mjs` trước đã."
+    );
+    process.exit(1);
+  }
+  console.log(`Có ${pool.length} bài trong kho.`);
+
+  const planRows = [];
+  const allPlanExerciseRows = []; // gộp theo plan_id, resolve exercise_id sau
+
+  for (const goalTag of GOAL_TAGS) {
+    for (const equipmentTag of EQUIPMENT_TAGS) {
+      for (const daysTag of DAYS_TAGS) {
+        for (const levelTag of LEVEL_TAGS) {
+          const planId = `${goalTag}-${equipmentTag}-${daysTag}-${levelTag}`;
+          // Khớp lib/planLogic.ts: "Đốt mỡ" luôn Full Body dù bao nhiêu
+          // buổi/tuần — tần suất cao + cardio mỗi buổi phù hợp đốt mỡ hơn
+          // tách nhóm cơ kiểu Push/Pull/Legs.
+          const splitLabel = goalTag === "fatloss" ? "Full Body" : SPLIT_LABEL_MAP[daysTag];
+          const scheme = GOAL_SCHEME[goalTag];
+          const rng = seedRandom(planId);
+          const pool2 = filterPool(pool, equipmentTag, levelTag);
+
+          const templates = dayTemplatesFor(splitLabel, daysTag);
+          let dayNumber = 1;
+          for (const buckets of templates) {
+            const dayRows = buildDay({
+              pool: pool2,
+              buckets,
+              rng,
+              scheme,
+              isCardioFinisher: goalTag === "fatloss",
+            });
+            for (const r of dayRows) {
+              allPlanExerciseRows.push({ ...r, plan_id: planId, day_number: dayNumber });
+            }
+            dayNumber++;
+          }
+
+          planRows.push({
+            id: planId,
+            name: NAME_MAP[goalTag],
+            description: `Chia lịch ${splitLabel} · dụng cụ: ${
+              equipmentTag === "bodyweight"
+                ? "không cần dụng cụ"
+                : equipmentTag === "home-dumbbell"
+                ? "tạ đơn / dây kháng lực tại nhà"
+                : "đầy đủ máy phòng gym"
+            }${levelTag === "beginner" ? " · đã lược bớt bài phức tạp (olympic/powerlifting) cho người mới" : ""}`,
+            coaching_notes: COACHING_NOTES[goalTag],
+          });
+        }
+      }
+    }
+  }
+
+  console.log(`Soạn xong ${planRows.length} gói, tổng ${allPlanExerciseRows.length} dòng bài tập.`);
+  console.log("Đang ghi workout_plans...");
+  const { error: wpErr } = await supabase.from("workout_plans").upsert(planRows, { onConflict: "id" });
+  if (wpErr) throw wpErr;
+
+  console.log("Đang xoá plan_exercises cũ của các gói này...");
+  const planIds = planRows.map((p) => p.id);
+  const { error: delErr } = await supabase.from("plan_exercises").delete().in("plan_id", planIds);
+  if (delErr) throw delErr;
+
+  console.log("Đang tra cứu exercise_id theo tên...");
+  const nameToId = new Map(pool.map((e) => [e.name, e.id]));
+
+  const finalRows = allPlanExerciseRows
+    .map((r) => {
+      const exerciseId = nameToId.get(r.exercise_name);
+      if (!exerciseId) return null;
+      return {
+        plan_id: r.plan_id,
+        exercise_id: exerciseId,
+        day_number: r.day_number,
+        sets: r.sets,
+        reps: r.reps,
+        rest_seconds: r.rest_seconds,
+        role: r.role,
+        order_index: r.order_index,
+      };
+    })
+    .filter(Boolean);
+
+  console.log(`Đang ghi ${finalRows.length} dòng plan_exercises...`);
+  const BATCH = 500;
+  for (let i = 0; i < finalRows.length; i += BATCH) {
+    const batch = finalRows.slice(i, i + BATCH);
+    const { error } = await supabase.from("plan_exercises").insert(batch);
+    if (error) throw error;
+    console.log(`  ...${Math.min(i + BATCH, finalRows.length)}/${finalRows.length}`);
+  }
+
+  console.log(
+    "Xong! Cả 96 gói (4 mục tiêu × 3 dụng cụ × 4 mức buổi/tuần × 2 trình độ) đã có lịch riêng."
+  );
+}
+
+main().catch((err) => {
+  console.error(err);
+  process.exit(1);
+});

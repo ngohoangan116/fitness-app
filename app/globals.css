@@ -1,0 +1,188 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+html {
+  scroll-behavior: smooth;
+}
+
+body {
+  background-color: #F5F3EE;
+  color: #1C1B1A;
+}
+
+/* Stencil-style headline: slight letter tension + uppercase, like gym signage */
+.stencil {
+  font-family: var(--font-oswald), sans-serif;
+  text-transform: uppercase;
+  letter-spacing: 0.02em;
+  font-weight: 700;
+}
+
+/* Torn-page / training card look for hero mockup */
+.training-card {
+  background: #1C1B1A;
+  color: #F5F3EE;
+  border-radius: 2px;
+  box-shadow: 0 30px 60px -20px rgba(0,0,0,0.45);
+  position: relative;
+}
+.training-card::before {
+  content: "";
+  position: absolute;
+  inset: 0;
+  border: 1px solid rgba(245,243,238,0.08);
+  pointer-events: none;
+}
+
+/* Stamp motif used for testimonials / "approved" badges */
+.stamp {
+  border: 3px solid currentColor;
+  border-radius: 9999px;
+  transform: rotate(-8deg);
+  font-family: var(--font-oswald), sans-serif;
+  text-transform: uppercase;
+  letter-spacing: 0.08em;
+}
+
+:focus-visible {
+  outline: 3px solid #F2C14E;
+  outline-offset: 2px;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  * {
+    animation-duration: 0.001ms !important;
+    transition-duration: 0.001ms !important;
+  }
+}
+/* ============================================================
+   THÊM VÀO CUỐI FILE app/globals.css (không xoá gì ở trên, chỉ nối thêm)
+   ============================================================ */
+
+/* Vạch chia phần dạng băng cảnh báo (hazard tape) — mô-típ chữ ký của
+   trang, gợi liên tưởng sàn tập gym / vạch an toàn công nghiệp. */
+.hazard-divider {
+  height: 10px;
+  background: repeating-linear-gradient(
+    135deg,
+    #1c1b1a 0 14px,
+    #f2c14e 14px 28px
+  );
+}
+
+/* Vòng tiến độ dạng CSS thuần (không cần thư viện) — dùng để hiện %
+   hoàn thành tổng thể của lộ trình trên trang dashboard. */
+.progress-ring {
+  width: 88px;
+  height: 88px;
+  border-radius: 9999px;
+  background: conic-gradient(#e8491d calc(var(--pct, 0) * 1%), rgba(28, 27, 26, 0.15) 0);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  flex-shrink: 0;
+}
+.progress-ring-inner {
+  width: 68px;
+  height: 68px;
+  border-radius: 9999px;
+  background: #f5f3ee;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+
+/* ============================================================
+   NÂNG CẤP HÌNH ẢNH: nền có chiều sâu (gradient + lưới mờ + glow)
+   thay cho màu phẳng. Không đổi cấu trúc, chỉ thêm class mới.
+   ============================================================ */
+
+.bg-ink-premium {
+  background-color: #1C1B1A;
+  background-image:
+    radial-gradient(ellipse 900px 550px at 88% -12%, rgba(232,73,29,0.20), transparent 60%),
+    radial-gradient(ellipse 700px 550px at -12% 112%, rgba(242,193,78,0.10), transparent 60%),
+    repeating-linear-gradient(0deg, rgba(245,243,238,0.035) 0px, rgba(245,243,238,0.035) 1px, transparent 1px, transparent 40px),
+    repeating-linear-gradient(90deg, rgba(245,243,238,0.035) 0px, rgba(245,243,238,0.035) 1px, transparent 1px, transparent 40px);
+}
+
+.bg-chalk-premium {
+  background-color: #F5F3EE;
+  background-image:
+    radial-gradient(ellipse 800px 450px at 92% -5%, rgba(28,27,26,0.035), transparent 60%),
+    repeating-linear-gradient(0deg, rgba(28,27,26,0.028) 0px, rgba(28,27,26,0.028) 1px, transparent 1px, transparent 32px),
+    repeating-linear-gradient(90deg, rgba(28,27,26,0.028) 0px, rgba(28,27,26,0.028) 1px, transparent 1px, transparent 32px);
+}
+
+.bg-steel-premium {
+  background-color: #5B6358;
+  background-image:
+    linear-gradient(135deg, rgba(0,0,0,0.14), transparent 55%),
+    linear-gradient(315deg, rgba(255,255,255,0.07), transparent 45%);
+}
+
+.btn-signal {
+  background-image: linear-gradient(135deg, #ED5127 0%, #DC3F16 100%);
+  box-shadow: 0 14px 34px -14px rgba(232,73,29,0.55);
+  transition: box-shadow 0.2s ease;
+}
+.btn-signal:hover {
+  box-shadow: 0 18px 40px -14px rgba(232,73,29,0.65);
+}
+
+.btn-ink {
+  background-image: linear-gradient(135deg, #262523, #131211);
+  box-shadow: 0 14px 34px -16px rgba(0,0,0,0.5);
+  transition: box-shadow 0.2s ease;
+}
+.btn-ink:hover {
+  box-shadow: 0 18px 40px -16px rgba(0,0,0,0.55);
+}
+
+/* Richer card: layered gradient + deeper multi-tier shadow + top hairline */
+.training-card {
+  background: linear-gradient(160deg, #242320 0%, #1C1B1A 55%, #161514 100%) !important;
+  box-shadow:
+    0 45px 90px -35px rgba(0,0,0,0.6),
+    0 12px 30px -18px rgba(0,0,0,0.5),
+    0 0 0 1px rgba(245,243,238,0.05) !important;
+}
+.training-card::after {
+  content: "";
+  position: absolute;
+  top: 0; left: 0; right: 0;
+  height: 1px;
+  background: linear-gradient(90deg, transparent, rgba(245,243,238,0.18), transparent);
+}
+
+/* Scroll-reveal: content fades + rises into place the first time it
+   enters the viewport (see components/Reveal.tsx). */
+.reveal {
+  opacity: 0;
+  transform: translateY(28px);
+  transition: opacity 0.7s ease, transform 0.7s ease;
+}
+.reveal.is-visible {
+  opacity: 1;
+  transform: translateY(0);
+}
+@media (prefers-reduced-motion: reduce) {
+  .reveal {
+    opacity: 1;
+    transform: none;
+  }
+}
+
+/* Sticky mobile CTA bar */
+.sticky-cta {
+  position: fixed;
+  left: 0; right: 0; bottom: 0;
+  z-index: 50;
+  transform: translateY(100%);
+  transition: transform 0.3s ease;
+}
+.sticky-cta.is-shown {
+  transform: translateY(0);
+}
