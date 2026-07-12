@@ -186,12 +186,17 @@ function buildDay({ pool, buckets, rng, scheme, isCardioFinisher }) {
 // Full Body cần mấy biến thể xoay vòng (A/B/C) — tránh lặp y hệt 1 buổi
 // khi tập tần suất cao (4-6 buổi/tuần đốt mỡ).
 function dayTemplatesFor(splitLabel, daysTag) {
+  // Thứ tự bucket trong mỗi mảng dưới đây CHÍNH LÀ thứ tự tập trong buổi
+  // (order_index đi theo thứ tự này) — xếp theo nguyên tắc tập nhóm cơ
+  // lớn/bài compound trước lúc còn sung sức, nhóm cơ nhỏ/bài bổ trợ và
+  // core dồn về cuối. "pull" (lưng/xô) là nhóm cơ CHÍNH ngang với "push"
+  // (ngực/vai) chứ không phải bài phụ — cả hai đều role "main".
   if (splitLabel === "Full Body") {
     const base = [
+      { bucket: "legs", count: 2, role: "main" }, // nhóm cơ lớn nhất, tập trước khi còn sung sức
       { bucket: "push", count: 2, role: "main" },
       { bucket: "pull", count: 2, role: "main" },
-      { bucket: "legs", count: 2, role: "main" },
-      { bucket: "core", count: 1, role: "accessory" },
+      { bucket: "core", count: 1, role: "accessory" }, // bụng/core luôn tập cuối
     ];
     // rng dùng chung xuyên suốt các buổi (xem seedRandom trong main()) nên
     // dù lặp lại cùng 1 template, bài cụ thể chọn ra mỗi buổi vẫn khác nhau
@@ -202,8 +207,8 @@ function dayTemplatesFor(splitLabel, daysTag) {
   if (splitLabel === "Upper / Lower") {
     return [
       [
-        { bucket: "push", count: 3, role: "main" },
-        { bucket: "pull", count: 3, role: "accessory" },
+        { bucket: "push", count: 3, role: "main" }, // ngực/vai trước lúc còn sung sức
+        { bucket: "pull", count: 3, role: "main" }, // lưng/xô — cùng là nhóm cơ chính, KHÔNG phải bài phụ
         { bucket: "core", count: 1, role: "accessory" },
       ],
       [

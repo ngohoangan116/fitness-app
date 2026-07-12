@@ -179,16 +179,6 @@ function TrialPageInner() {
                               </span>
                             </span>
                           </label>
-                          {r.exercises?.video_url && (
-                            <a
-                              href={r.exercises.video_url}
-                              target="_blank"
-                              rel="noopener noreferrer"
-                              className="font-mono text-xs text-signal underline ml-4 shrink-0"
-                            >
-                              Tìm video YouTube ▶
-                            </a>
-                          )}
                           {(r.exercises?.image_url ||
                             (r.exercises?.instructions && r.exercises.instructions.length > 0)) && (
                             <button
