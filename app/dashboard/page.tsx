@@ -554,16 +554,7 @@ export default function DashboardPage() {
                               placeholder="Mức tạ..."
                               className="font-mono text-xs w-20 md:w-28 border-b-2 border-steel/30 bg-transparent focus:outline-none focus:border-signal px-1 py-1 mx-3 shrink-0"
                             />
-                            {r.exercises?.video_url && (
-                              <a
-                                href={r.exercises.video_url}
-                                target="_blank"
-                                rel="noopener noreferrer"
-                                className="font-mono text-xs text-signal underline ml-4 shrink-0"
-                              >
-                                Tìm video YouTube ▶
-                              </a>
-                            )}
+                            
                             {(r.exercises?.image_url ||
                               (r.exercises?.instructions && r.exercises.instructions.length > 0)) && (
                               <button
@@ -582,10 +573,11 @@ export default function DashboardPage() {
                               {r.exercises?.image_url && (
                                 /* eslint-disable-next-line @next/next/no-img-element */
                                 <img
-                                  src={r.exercises.image_url}
+                                 src={r.exercises.image_url}
                                   alt={r.exercises?.name ?? "Hướng dẫn bài tập"}
-                                  className="max-w-xs mb-3 border-2 border-ink"
-                                />
+                                 className="max-w-lg w-full mb-3 border-2 border-ink rounded-lg shadow-lg"
+                                style={{ maxHeight: '400px', objectFit: 'contain' }}
+                               />
                               )}
                               {r.exercises?.instructions && r.exercises.instructions.length > 0 && (
                                 <ol className="list-decimal list-inside space-y-1.5 font-body text-sm text-steel">

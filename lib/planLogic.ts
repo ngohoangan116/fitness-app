@@ -74,10 +74,10 @@ export function recommendPlan(answers: QuizAnswers): PlanResult {
   };
 
   const focusMap: Record<string, string[]> = {
-    hypertrophy: ["Tập tạ nặng, ít lặp", "Nghỉ 90-120s giữa hiệp", "Ăn dư calo nhẹ"],
-    fatloss: ["Kết hợp cardio cuối mỗi buổi", "Nghỉ ngắn 30-45s", "Ưu tiên thâm hụt calo"],
-    endurance: ["Nhiều lặp, tạ nhẹ", "Tập tuần hoàn (circuit)", "Tăng dần thời lượng"],
-    maintenance: ["Toàn thân, cường độ vừa phải", "Lịch tập linh hoạt", "Duy trì lâu dài"],
+    hypertrophy: ["Tập tạ nặng, ít lặp", "Nghỉ 90-120s giữa hiệp", "Ăn dư calo nhẹ" , "Nhóm cơ lớn trước"],
+    fatloss: ["Kết hợp cardio cuối mỗi buổi", "Nghỉ ngắn 30-45s", "Ưu tiên thâm hụt calo" , "Nhóm cơ lớn trước"],
+    endurance: ["Nhiều lặp, tạ nhẹ", "Tập tuần hoàn (circuit)", "Tăng dần thời lượng" , "Nhóm cơ lớn trước"],
+    maintenance: ["Toàn thân, cường độ vừa phải", "Lịch tập linh hoạt", "Duy trì lâu dài" , "Nhóm cơ lớn trước"],
   };
 
   const equipmentNote: Record<string, string> = {
