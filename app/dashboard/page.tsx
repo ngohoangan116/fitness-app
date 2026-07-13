@@ -8,9 +8,71 @@ import { formatElapsed, minutesBetween } from "@/lib/sessionTimer";
 import WeightLog from "@/components/WeightLog";
 import MacroCalculator from "@/components/MacroCalculator";
 import ShareAchievement from "@/components/ShareAchievement";
-import CheckBox from "@/components/CheckBox";
-import ChevronIcon from "@/components/ChevronIcon";
-import { CheckIcon, FlameIcon, CalendarIcon } from "@/components/Icons";
+
+// Icon SVG gọn, theo đúng nét "stencil" của web (nét dày, bo góc nhẹ) —
+// dùng thay cho checkbox mặc định trình duyệt + ký tự ▼▲ trước đây.
+function CheckIcon({ className = "" }: { className?: string }) {
+  return (
+    <svg viewBox="0 0 24 24" fill="none" className={className} aria-hidden="true">
+      <path
+        d="M5 12.5L9.5 17L19 7"
+        stroke="currentColor"
+        strokeWidth={3}
+        strokeLinecap="round"
+        strokeLinejoin="round"
+      />
+    </svg>
+  );
+}
+function ChevronIcon({ className = "" }: { className?: string }) {
+  return (
+    <svg viewBox="0 0 24 24" fill="none" className={className} aria-hidden="true">
+      <path
+        d="M6 9L12 15L18 9"
+        stroke="currentColor"
+        strokeWidth={2.5}
+        strokeLinecap="round"
+        strokeLinejoin="round"
+      />
+    </svg>
+  );
+}
+function GuideIcon({ className = "" }: { className?: string }) {
+  return (
+    <svg viewBox="0 0 24 24" fill="none" className={className} aria-hidden="true">
+      <circle cx={12} cy={12} r={9} stroke="currentColor" strokeWidth={2} />
+      <path d="M12 11v5.5" stroke="currentColor" strokeWidth={2} strokeLinecap="round" />
+      <circle cx={12} cy={7.6} r={1.15} fill="currentColor" />
+    </svg>
+  );
+}
+function MedalIcon({ className = "" }: { className?: string }) {
+  return (
+    <svg viewBox="0 0 24 24" fill="none" className={className} aria-hidden="true">
+      <circle cx={12} cy={14} r={6} stroke="currentColor" strokeWidth={2} />
+      <path d="M12 10.5l1.1 2.3 2.5.35-1.8 1.75.43 2.5-2.23-1.18-2.23 1.18.43-2.5-1.8-1.75 2.5-.35L12 10.5z" fill="currentColor" />
+      <path d="M9 3.5L7 9M15 3.5L17 9" stroke="currentColor" strokeWidth={2} strokeLinecap="round" />
+    </svg>
+  );
+}
+
+function FlameIcon({ className = "" }: { className?: string }) {
+  return (
+    <svg viewBox="0 0 24 24" fill="none" className={className} aria-hidden="true">
+      <path d="M8.5 14.5c0 2 1.5 3.5 3.5 3.5s3.5-1.5 3.5-3.5c0-1.2-.6-2.3-1.5-3-1-3.5-3.5-5-3.5-5s.5 2.5-1.5 4.5c-.8.8-1.5 2-1.5 3.5z" stroke="currentColor" strokeWidth={2} strokeLinecap="round" strokeLinejoin="round" />
+    </svg>
+  );
+}
+
+function CalendarIcon({ className = "" }: { className?: string }) {
+  return (
+    <svg viewBox="0 0 24 24" fill="none" className={className} aria-hidden="true">
+      <rect x="3" y="4" width="18" height="18" rx="2" stroke="currentColor" strokeWidth={2} />
+      <path d="M16 2v4M8 2v4M3 10h18" stroke="currentColor" strokeWidth={2} strokeLinecap="round" />
+    </svg>
+  );
+}
+
 
 type PlanExerciseRow = {
   id: string;
@@ -83,6 +145,7 @@ export default function DashboardPage() {
   const [weightNotes, setWeightNotes] = useState<Record<string, string>>({});
   const [loading, setLoading] = useState(true);
   const [level, setLevel] = useState<string | null>(null);
+  const [showNotes, setShowNotes] = useState(false);
   const [copied, setCopied] = useState(false);
   const [openGuide, setOpenGuide] = useState<string | null>(null);
   const [streak, setStreak] = useState(0);
@@ -310,26 +373,26 @@ export default function DashboardPage() {
   const sessionsPerWeekGuess = order.plan_id.includes("3day") ? 3 : 4;
 
   return (
-    <main className="min-h-screen bg-chalk-premium text-chalk pb-20">
+    <main className="min-h-screen bg-chalk-premium text-ink pb-20">
       <div className="max-w-xl mx-auto px-6">
         <div className="flex items-center justify-between py-6 mb-6">
-          <h1 className="stencil text-3xl text-tape">Dashboard</h1>
+          <h1 className="stencil text-3xl text-ink">Dashboard</h1>
           <div className="flex items-center gap-3">
-            <a href="/quiz" className="inline-flex items-center gap-1.5 font-mono text-xs text-steel hover:text-tape transition-colors"><FlameIcon className="w-4 h-4" />Đổi mục tiêu</a>
-            <button onClick={downloadCalendar} className="inline-flex items-center gap-1.5 font-mono text-xs text-steel hover:text-tape transition-colors"><CalendarIcon className="w-4 h-4" />Xuất lịch</button>
+            <a href="/quiz" className="inline-flex items-center gap-1.5 font-mono text-xs text-steel hover:text-signal transition-colors"><FlameIcon className="w-4 h-4" />Đổi mục tiêu</a>
+            <button onClick={downloadCalendar} className="inline-flex items-center gap-1.5 font-mono text-xs text-steel hover:text-signal transition-colors"><CalendarIcon className="w-4 h-4" />Xuất lịch</button>
           </div>
         </div>
 
         {planMeta?.coaching_notes && (
           <div className="training-card p-5 mb-8">
-            <p className="font-mono text-[11px] text-tape tracking-widest mb-1">GHI CHÚ</p>
+            <p className="font-mono text-[11px] text-tape tracking-widest mb-1">GHI CHÚ TỪ COACH</p>
             <p className="font-body text-sm text-chalk/90 whitespace-pre-wrap">{planMeta.coaching_notes}</p>
           </div>
         )}
 
         {guide && (
           <div className="training-card p-5 mb-8">
-            <p className="font-mono text-[11px] text-tape tracking-widest mb-1">HƯỚNG DẪN</p>
+            <p className="font-mono text-[11px] text-tape tracking-widest mb-1">HƯỚNG DẪN CƯỜNG ĐỘ</p>
             <p className="font-body text-sm text-chalk/90 mb-2">Mức độ: <span className="font-bold">{level}</span></p>
             <p className="font-body text-sm text-chalk/90 mb-2">{guide.rir}</p>
             <p className="font-body text-sm text-chalk/70">{guide.note}</p>
@@ -362,15 +425,15 @@ export default function DashboardPage() {
                   )}
                 </div>
                 <span className="font-mono text-xs text-steel flex items-center gap-3">
-                  {done}/{total} bài
+                  Đã hoàn thành {done}/{total} bài
                   {runningDay === day && startedAt && (
                     <span className="font-mono text-sm font-bold bg-tape text-ink rounded-full px-3 py-1.5">⏱ {formatElapsed(Date.now() - startedAt)}</span>
                   )}
                   {done < total && runningDay !== day && (
-                    <button onClick={() => startTimer(day)} className="flex items-center gap-1.5 font-mono text-xs font-bold bg-tape text-ink rounded-full px-4 py-2 shadow-sm hover:brightness-95 transition">▶ Bắt đầu</button>
+                    <button onClick={() => startTimer(day)} className="inline-flex items-center gap-1.5 font-mono text-[11px] text-signal hover:text-tape transition-colors">▶ Bắt đầu</button>
                   )}
                   {done < total && (
-                    <button onClick={() => completeWholeDay(day)} disabled={bulkSaving === day} className="flex items-center gap-1.5 font-mono text-xs font-bold bg-signal text-chalk rounded-full px-4 py-2 shadow-sm hover:brightness-95 transition disabled:opacity-40">{bulkSaving === day ? "..." : "✓ Xong cả buổi"}</button>
+                    <button onClick={() => completeWholeDay(day)} disabled={bulkSaving === day} className="inline-flex items-center gap-1.5 font-mono text-[11px] text-signal hover:text-tape transition-colors disabled:opacity-40"><CheckIcon className="w-3.5 h-3.5" />{bulkSaving === day ? "..." : "Hoàn thành cả buổi"}</button>
                   )}
                 </span>
               </div>
@@ -388,17 +451,18 @@ export default function DashboardPage() {
                         <li key={r.id}>
                           <div className={`flex items-center justify-between border-2 px-5 py-3 transition-colors ${progress[r.id] ? "border-signal/40 bg-signal/5" : "border-ink hover:bg-ink/5"}`}>
                             <label className="flex-1 flex items-center gap-3 cursor-pointer">
-                              <CheckBox checked={!!progress[r.id]} onChange={() => toggle(r.id)} />
-                              <span className="font-body">{r.exercises?.name}<span className="font-mono text-xs text-steel ml-3">{r.sets} x {r.reps}{r.rest_seconds > 0 && ` · nghỉ ${r.rest_seconds}s`}</span></span>
+                              <input type="checkbox" checked={!!progress[r.id]} onChange={() => toggle(r.id)} className="sr-only peer" />
+                              <span className={`relative w-6 h-6 shrink-0 rounded-md border-2 flex items-center justify-center transition-all duration-200 ${progress[r.id] ? "bg-signal border-signal" : "border-steel/40 peer-hover:border-signal/70"}`}><CheckIcon className={`w-4 h-4 text-chalk transition-all ${progress[r.id] ? "scale-100 opacity-100" : "scale-50 opacity-0"}`} /></span>
+                              <span className="font-body text-ink">{r.exercises?.name}<span className="font-mono text-xs text-steel ml-3">{r.sets} x {r.reps}{r.rest_seconds > 0 && ` · nghỉ ${r.rest_seconds}s`}</span></span>
                             </label>
                             <input type="text" value={weightNotes[r.id] ?? ""} onChange={(e) => updateWeightNoteLocal(r.id, e.target.value)} onBlur={() => saveWeightNote(r.id)} placeholder="Mức tạ" className="font-mono text-xs w-20 md:w-28 border-b-2 border-steel/30 bg-transparent focus:outline-none focus:border-signal px-1 py-1 mx-3 shrink-0" />
                             {(r.exercises?.image_url || r.exercises?.instructions) && (
-                              <button type="button" onClick={() => setOpenGuide((cur) => (cur === r.id ? null : r.id))} className="font-mono text-xs text-signal flex items-center gap-1.5 ml-4 shrink-0">Hướng dẫn <ChevronIcon open={openGuide === r.id} /></button>
+                              <button type="button" onClick={() => setOpenGuide((cur) => (cur === r.id ? null : r.id))} className="font-mono text-xs text-signal flex items-center gap-1.5 ml-4 shrink-0">Hướng dẫn <ChevronIcon className={`w-3.5 h-3.5 transition-transform ${openGuide === r.id ? "rotate-180" : ""}`} /></button>
                             )}
                           </div>
                           {openGuide === r.id && (
                             <div className="border-2 border-t-0 border-ink px-5 py-4 bg-ink/5">
-                              {r.exercises?.image_url && <img src={r.exercises.image_url} alt="HD" className="max-w-lg w-full mb-3 border-2 border-ink rounded-lg" style={{ maxHeight: '400px', objectFit: 'contain' }} />}
+                              {r.exercises?.image_url && <img src={r.exercises.image_url} alt="HD" className="max-w-lg w-full mb-3 border-2 border-ink rounded-lg shadow-lg" style={{ maxHeight: '400px', objectFit: 'contain' }} />}
                               {r.exercises?.instructions && <ol className="list-decimal list-inside space-y-1.5 font-body text-sm text-steel">{r.exercises.instructions.map((step, i) => <li key={i}>{step}</li>)}</ol>}
                             </div>
                           )}
@@ -413,15 +477,5 @@ export default function DashboardPage() {
         })}
       </div>
     </main>
-  );
-}
-
-function MedalIcon({ className = "" }: { className?: string }) {
-  return (
-    <svg viewBox="0 0 24 24" fill="none" className={className} aria-hidden="true">
-      <circle cx={12} cy={14} r={6} stroke="currentColor" strokeWidth={2} />
-      <path d="M12 10.5l1.1 2.3 2.5.35-1.8 1.75.43 2.5-2.23-1.18-2.23 1.18.43-2.5-1.8-1.75 2.5-.35L12 10.5z" fill="currentColor" />
-      <path d="M9 3.5L7 9M15 3.5L17 9" stroke="currentColor" strokeWidth={2} strokeLinecap="round" />
-    </svg>
   );
 }
