@@ -4,7 +4,6 @@ import { useEffect, useState, useCallback } from "react";
 import { supabase } from "@/lib/supabase";
 import { calcStreak } from "@/lib/streak";
 import { buildWorkoutIcs, downloadIcs } from "@/lib/ics";
-import { formatElapsed, minutesBetween } from "@/lib/sessionTimer";
 import WeightLog from "@/components/WeightLog";
 import MacroCalculator from "@/components/MacroCalculator";
 import ShareAchievement from "@/components/ShareAchievement";
@@ -91,12 +90,6 @@ export default function DashboardPage() {
   const [openGuide, setOpenGuide] = useState<string | null>(null);
   const [streak, setStreak] = useState(0);
   const [bulkSaving, setBulkSaving] = useState<number | null>(null);
-  const [runningDay, setRunningDay] = useState<number | null>(null);
-  const [startedAt, setStartedAt] = useState<number | null>(null);
-  const [, setTick] = useState(0);
-  const [lastSessionReport, setLastSessionReport] = useState<{ day: number; minutes: number } | null>(
-    null
-  );
 
   const load = useCallback(async () => {
     setLoading(true);
@@ -178,20 +171,6 @@ export default function DashboardPage() {
     return () => clearInterval(interval);
   }, [order, load]);
 
-  // Dong ho song cho buoi dang bam "Bat dau" — chi de ve lai UI moi giay,
-  // khong goi mang.
-  useEffect(() => {
-    if (runningDay === null) return;
-    const interval = setInterval(() => setTick((t) => t + 1), 1000);
-    return () => clearInterval(interval);
-  }, [runningDay]);
-
-  function startTimer(day: number) {
-    setRunningDay(day);
-    setStartedAt(Date.now());
-    setLastSessionReport(null);
-  }
-
   async function toggle(planExerciseId: string) {
     const orderCode = localStorage.getItem("orderCode");
     if (!orderCode) return;
@@ -257,23 +236,6 @@ export default function DashboardPage() {
       })),
       { onConflict: "order_code,plan_exercise_id" }
     );
-
-    // Neu dong ho dang chay cho dung buoi nay, dung lai va ghi tong so phut.
-    if (runningDay === day && startedAt) {
-      const endMs = Date.now();
-      const minutes = minutesBetween(startedAt, endMs);
-      await supabase.from("session_logs").insert({
-        order_code: orderCode,
-        day_number: day,
-        started_at: new Date(startedAt).toISOString(),
-        ended_at: new Date(endMs).toISOString(),
-        minutes,
-      });
-      setLastSessionReport({ day, minutes });
-      setRunningDay(null);
-      setStartedAt(null);
-    }
-
     setBulkSaving(null);
   }
 
@@ -537,7 +499,7 @@ export default function DashboardPage() {
           const isComplete = total > 0 && done === total;
           return (
             <div key={day} className="mb-10 relative">
-              <div className="flex flex-wrap items-center justify-between gap-3 mb-4">
+              <div className="flex items-baseline justify-between mb-4">
                 <div className="flex items-center gap-3">
                   <h2 className="stencil text-lg text-steel">{labelForDay(day)}</h2>
                   {isComplete && (
@@ -549,40 +511,19 @@ export default function DashboardPage() {
                     </span>
                   )}
                 </div>
-                <span className="flex items-center gap-2">
-                  <span className="font-mono text-xs text-steel">
-                    {done}/{total} hoàn thành
-                  </span>
-                  {runningDay === day && startedAt && (
-                    <span className="font-mono text-sm font-bold bg-ink/10 text-ink rounded-full px-3 py-1.5">
-                      ⏱ {formatElapsed(Date.now() - startedAt)}
-                    </span>
-                  )}
-                  {done < total && runningDay !== day && (
-                    <button
-                      onClick={() => startTimer(day)}
-                      className="flex items-center gap-1.5 font-mono text-xs font-bold bg-tape text-ink rounded-full px-4 py-2 shadow-sm hover:brightness-95 transition"
-                    >
-                      ▶ Bắt đầu
-                    </button>
-                  )}
+                <span className="font-mono text-xs text-steel flex items-center gap-3">
+                  {done}/{total} hoàn thành
                   {done < total && (
                     <button
                       onClick={() => completeWholeDay(day)}
                       disabled={bulkSaving === day}
-                      className="flex items-center gap-1.5 font-mono text-xs font-bold bg-signal text-chalk rounded-full px-4 py-2 shadow-sm hover:brightness-95 transition disabled:opacity-40"
+                      className="font-mono text-[11px] text-signal underline disabled:opacity-40"
                     >
-                      {bulkSaving === day ? "Đang lưu..." : "✓ Hoàn thành cả buổi"}
+                      {bulkSaving === day ? "Đang lưu..." : "Hoàn thành cả buổi"}
                     </button>
                   )}
                 </span>
               </div>
-
-              {lastSessionReport?.day === day && (
-                <p className="font-mono text-xs text-tape mb-3">
-                  ⏱ Bạn đã tập {lastSessionReport.minutes} phút hôm nay!
-                </p>
-              )}
 
               {(["main", "accessory", "cardio"] as const).map((role) => {
                 const roleRows = rows.filter((r) => r.day_number === day && r.role === role);
@@ -596,20 +537,20 @@ export default function DashboardPage() {
                       {roleRows.map((r) => (
                         <li key={r.id}>
                           <div
-                            className={`flex items-center justify-between gap-2 flex-wrap border-2 px-5 py-3 transition-colors ${
+                            className={`flex items-center justify-between border-2 px-5 py-3 transition-colors ${
                               progress[r.id]
                                 ? "border-signal/40 bg-signal/5"
                                 : "border-ink hover:bg-ink/5"
                             }`}
                           >
                             <label
-                              className="flex-1 min-w-0 flex items-center gap-3 cursor-pointer"
+                              className="flex-1 flex items-center gap-3 cursor-pointer"
                               onClick={() => toggle(r.id)}
                             >
                               <CheckBox checked={!!progress[r.id]} onChange={() => toggle(r.id)} />
-                              <span className="font-body min-w-0 flex-1">
-                                <span className="block">{r.exercises?.name}</span>
-                                <span className="block font-mono text-xs text-steel mt-1 whitespace-nowrap">
+                              <span className="font-body">
+                                {r.exercises?.name}
+                                <span className="font-mono text-xs text-steel ml-3">
                                   {r.sets} x {r.reps}
                                   {r.rest_seconds > 0 && ` · nghỉ ${r.rest_seconds}s`}
                                 </span>
@@ -622,7 +563,7 @@ export default function DashboardPage() {
                               onBlur={() => saveWeightNote(r.id)}
                               onClick={(e) => e.stopPropagation()}
                               placeholder="Mức tạ..."
-                              className="font-mono text-xs w-20 md:w-28 border-b-2 border-steel/30 bg-transparent focus:outline-none focus:border-signal px-1 py-1 shrink-0"
+                              className="font-mono text-xs w-20 md:w-28 border-b-2 border-steel/30 bg-transparent focus:outline-none focus:border-signal px-1 py-1 mx-3 shrink-0"
                             />
                             
                             {(r.exercises?.image_url ||
