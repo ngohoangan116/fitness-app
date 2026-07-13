@@ -7,6 +7,9 @@ import { buildWorkoutIcs, downloadIcs } from "@/lib/ics";
 import WeightLog from "@/components/WeightLog";
 import MacroCalculator from "@/components/MacroCalculator";
 import ShareAchievement from "@/components/ShareAchievement";
+import CheckBox from "@/components/CheckBox";
+import ChevronIcon from "@/components/ChevronIcon";
+import { FlameIcon, CalendarIcon } from "@/components/Icons";
 
 type PlanExerciseRow = {
   id: string;
@@ -385,7 +388,9 @@ export default function DashboardPage() {
               <p className="font-mono text-xs text-chalk/60">{planMeta.description}</p>
             )}
             {streak > 0 && (
-              <p className="font-mono text-sm text-tape mt-2">🔥 {streak} ngày liên tục</p>
+              <p className="font-mono text-sm text-tape mt-2 flex items-center gap-1.5">
+                <FlameIcon /> {streak} ngày tập liên tục
+              </p>
             )}
           </div>
           {totalAll > 0 && (
@@ -417,9 +422,9 @@ export default function DashboardPage() {
 
         <button
           onClick={downloadCalendar}
-          className="w-full font-mono text-xs border-2 border-ink px-4 py-3 mb-6 hover:bg-ink hover:text-chalk transition-colors"
+          className="w-full font-mono text-xs border-2 border-ink px-4 py-3 mb-6 flex items-center justify-center gap-2 hover:bg-ink hover:text-chalk transition-colors"
         >
-          📅 Thêm lịch tập vào Google/Apple Calendar
+          <CalendarIcon /> Thêm lịch tập vào Calendar
         </button>
 
         {guide && (
@@ -439,9 +444,9 @@ export default function DashboardPage() {
           <div className="mb-8">
             <button
               onClick={() => setShowNotes((s) => !s)}
-              className="font-mono text-xs text-signal underline"
+              className="font-mono text-xs text-signal flex items-center gap-1.5"
             >
-              {showNotes ? "Ẩn ghi chú khởi động & tăng tải ▲" : "Xem ghi chú khởi động & tăng tải ▼"}
+              Ghi chú khởi động & tăng tải <ChevronIcon open={showNotes} />
             </button>
             {showNotes && (
               <div className="training-card p-5 mt-3 whitespace-pre-line font-body text-sm text-chalk/85 leading-relaxed">
@@ -538,13 +543,11 @@ export default function DashboardPage() {
                                 : "border-ink hover:bg-ink/5"
                             }`}
                           >
-                            <label className="flex-1 flex items-center gap-3 cursor-pointer">
-                              <input
-                                type="checkbox"
-                                checked={!!progress[r.id]}
-                                onChange={() => toggle(r.id)}
-                                className="w-5 h-5 accent-signal shrink-0"
-                              />
+                            <label
+                              className="flex-1 flex items-center gap-3 cursor-pointer"
+                              onClick={() => toggle(r.id)}
+                            >
+                              <CheckBox checked={!!progress[r.id]} onChange={() => toggle(r.id)} />
                               <span className="font-body">
                                 {r.exercises?.name}
                                 <span className="font-mono text-xs text-steel ml-3">
@@ -570,9 +573,9 @@ export default function DashboardPage() {
                                 onClick={() =>
                                   setOpenGuide((cur) => (cur === r.id ? null : r.id))
                                 }
-                                className="font-mono text-xs text-signal underline ml-4 shrink-0"
+                                className="font-mono text-xs text-signal flex items-center gap-1.5 ml-4 shrink-0"
                               >
-                                {openGuide === r.id ? "Ẩn hướng dẫn ▲" : "Xem hướng dẫn ▼"}
+                                Hướng dẫn <ChevronIcon open={openGuide === r.id} />
                               </button>
                             )}
                           </div>
