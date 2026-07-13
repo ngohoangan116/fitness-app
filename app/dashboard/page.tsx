@@ -4,57 +4,13 @@ import { useEffect, useState, useCallback } from "react";
 import { supabase } from "@/lib/supabase";
 import { calcStreak } from "@/lib/streak";
 import { buildWorkoutIcs, downloadIcs } from "@/lib/ics";
+import { formatElapsed, minutesBetween } from "@/lib/sessionTimer";
 import WeightLog from "@/components/WeightLog";
 import MacroCalculator from "@/components/MacroCalculator";
 import ShareAchievement from "@/components/ShareAchievement";
-
-// Icon SVG gọn, theo đúng nét "stencil" của web (nét dày, bo góc nhẹ) —
-// dùng thay cho checkbox mặc định trình duyệt + ký tự ▼▲ trước đây.
-function CheckIcon({ className = "" }: { className?: string }) {
-  return (
-    <svg viewBox="0 0 24 24" fill="none" className={className} aria-hidden="true">
-      <path
-        d="M5 12.5L9.5 17L19 7"
-        stroke="currentColor"
-        strokeWidth={3}
-        strokeLinecap="round"
-        strokeLinejoin="round"
-      />
-    </svg>
-  );
-}
-function ChevronIcon({ className = "" }: { className?: string }) {
-  return (
-    <svg viewBox="0 0 24 24" fill="none" className={className} aria-hidden="true">
-      <path
-        d="M6 9L12 15L18 9"
-        stroke="currentColor"
-        strokeWidth={2.5}
-        strokeLinecap="round"
-        strokeLinejoin="round"
-      />
-    </svg>
-  );
-}
-function GuideIcon({ className = "" }: { className?: string }) {
-  return (
-    <svg viewBox="0 0 24 24" fill="none" className={className} aria-hidden="true">
-      <circle cx={12} cy={12} r={9} stroke="currentColor" strokeWidth={2} />
-      <path d="M12 11v5.5" stroke="currentColor" strokeWidth={2} strokeLinecap="round" />
-      <circle cx={12} cy={7.6} r={1.15} fill="currentColor" />
-    </svg>
-  );
-}
-function MedalIcon({ className = "" }: { className?: string }) {
-  return (
-    <svg viewBox="0 0 24 24" fill="none" className={className} aria-hidden="true">
-      <circle cx={12} cy={14} r={6} stroke="currentColor" strokeWidth={2} />
-      <path d="M12 10.5l1.1 2.3 2.5.35-1.8 1.75.43 2.5-2.23-1.18-2.23 1.18.43-2.5-1.8-1.75 2.5-.35L12 10.5z" fill="currentColor" />
-      <path d="M9 3.5L7 9M15 3.5L17 9" stroke="currentColor" strokeWidth={2} strokeLinecap="round" />
-    </svg>
-  );
-}
-
+import CheckBox from "@/components/CheckBox";
+import ChevronIcon from "@/components/ChevronIcon";
+import { CheckIcon, FlameIcon, CalendarIcon } from "@/components/Icons";
 
 type PlanExerciseRow = {
   id: string;
@@ -135,6 +91,12 @@ export default function DashboardPage() {
   const [openGuide, setOpenGuide] = useState<string | null>(null);
   const [streak, setStreak] = useState(0);
   const [bulkSaving, setBulkSaving] = useState<number | null>(null);
+  const [runningDay, setRunningDay] = useState<number | null>(null);
+  const [startedAt, setStartedAt] = useState<number | null>(null);
+  const [, setTick] = useState(0);
+  const [lastSessionReport, setLastSessionReport] = useState<{ day: number; minutes: number } | null>(
+    null
+  );
 
   const load = useCallback(async () => {
     setLoading(true);
@@ -216,6 +178,20 @@ export default function DashboardPage() {
     return () => clearInterval(interval);
   }, [order, load]);
 
+  // Dong ho song cho buoi dang bam "Bat dau" — chi de ve lai UI moi giay,
+  // khong goi mang.
+  useEffect(() => {
+    if (runningDay === null) return;
+    const interval = setInterval(() => setTick((t) => t + 1), 1000);
+    return () => clearInterval(interval);
+  }, [runningDay]);
+
+  function startTimer(day: number) {
+    setRunningDay(day);
+    setStartedAt(Date.now());
+    setLastSessionReport(null);
+  }
+
   async function toggle(planExerciseId: string) {
     const orderCode = localStorage.getItem("orderCode");
     if (!orderCode) return;
@@ -281,6 +257,23 @@ export default function DashboardPage() {
       })),
       { onConflict: "order_code,plan_exercise_id" }
     );
+
+    // Neu dong ho dang chay cho dung buoi nay, dung lai va ghi tong so phut.
+    if (runningDay === day && startedAt) {
+      const endMs = Date.now();
+      const minutes = minutesBetween(startedAt, endMs);
+      await supabase.from("session_logs").insert({
+        order_code: orderCode,
+        day_number: day,
+        started_at: new Date(startedAt).toISOString(),
+        ended_at: new Date(endMs).toISOString(),
+        minutes,
+      });
+      setLastSessionReport({ day, minutes });
+      setRunningDay(null);
+      setStartedAt(null);
+    }
+
     setBulkSaving(null);
   }
 
@@ -417,85 +410,57 @@ export default function DashboardPage() {
     | "fatloss"
     | "endurance"
     | "maintenance";
-  const sessionsPerWeekGuess = days.length;
+  const sessionsPerWeekGuess = order.plan_id.includes("3day") ? 3 : 4;
 
   return (
-    <main className="min-h-screen bg-chalk-premium">
-      {/* COVER HEADER — ky ket giong bia so tap, khong chi la 1 dong tieu de */}
-      <div className="bg-ink-premium text-chalk">
-        <div className="max-w-2xl mx-auto px-6 py-14 flex items-center justify-between gap-6">
-          <div>
-            <p className="font-mono text-xs text-signal tracking-[0.3em] mb-2">
-              LỘ TRÌNH ĐANG HOẠT ĐỘNG
-            </p>
-            <h1 className="stencil text-3xl md:text-4xl mb-2">{order.plan_name}</h1>
-            {planMeta?.description && (
-              <p className="font-mono text-xs text-chalk/60">{planMeta.description}</p>
-            )}
-            {streak > 0 && (
-              <p className="font-mono text-sm text-tape mt-2">🔥 {streak} ngày liên tục</p>
-            )}
-          </div>
-          {totalAll > 0 && (
-            <div
-              className="progress-ring"
-              style={{ "--pct": overallPct } as React.CSSProperties}
+    <main className="min-h-screen bg-chalk-premium text-chalk pb-20">
+      <div className="max-w-xl mx-auto px-6">
+        <div className="flex items-center justify-between py-6 mb-6">
+          <h1 className="stencil text-3xl text-tape">Dashboard</h1>
+          <div className="flex items-center gap-3">
+            <a
+              href="/quiz"
+              className="inline-flex items-center gap-1.5 font-mono text-xs text-steel hover:text-tape transition-colors"
             >
-              <div className="progress-ring-inner">
-                <span className="font-mono text-sm text-ink">{overallPct}%</span>
-              </div>
-            </div>
-          )}
-        </div>
-      </div>
-      <div className="hazard-divider" aria-hidden="true" />
-
-      <div className="max-w-2xl mx-auto px-6 py-12">
-        {guaranteeDaysLeft > 0 && (
-          <div className="border-2 border-tape/60 px-5 py-3 mb-6 flex items-center justify-between gap-4 flex-wrap">
-            <p className="font-body text-sm text-steel">
-              Còn <span className="font-mono text-ink">{guaranteeDaysLeft} ngày</span> để
-              đổi gói miễn phí nếu chưa phù hợp.
-            </p>
-            <a href={SUPPORT_ZALO_URL} target="_blank" rel="noopener noreferrer" className="font-mono text-xs text-signal underline shrink-0">
-              Nhắn admin →
+              <FlameIcon className="w-4 h-4" />
+              Đổi mục tiêu
             </a>
+            <button
+              onClick={downloadCalendar}
+              className="inline-flex items-center gap-1.5 font-mono text-xs text-steel hover:text-tape transition-colors"
+            >
+              <CalendarIcon className="w-4 h-4" />
+              Xuất lịch
+            </button>
           </div>
-        )}
+        </div>
 
-        <button
-          onClick={downloadCalendar}
-          className="w-full font-mono text-xs border-2 border-ink px-4 py-3 mb-6 hover:bg-ink hover:text-chalk transition-colors"
-        >
-          📅 Thêm lịch tập vào Google/Apple Calendar
-        </button>
-
-        {guide && (
-          <div className="training-card p-5 mb-6">
-            <p className="font-mono text-[11px] text-tape tracking-widest mb-1">
-              MỨC ĐỘ CỦA BẠN: {level?.toUpperCase()}
+        {guaranteeDaysLeft > 0 && (
+          <div className="training-card p-5 mb-8">
+            <p className="font-mono text-[11px] text-tape tracking-widest mb-1">HOÀN TIỀN</p>
+            <p className="font-body text-sm text-chalk/90">
+              Bạn còn {guaranteeDaysLeft} ngày để yêu cầu hoàn tiền nếu không hài lòng.
             </p>
-            <p className="font-body text-sm text-chalk/90 mb-1">
-              <span className="text-tape font-mono">{guide.rir}</span> — dừng hiệp
-              khi đạt mức này, đừng cố tập tới kiệt sức.
-            </p>
-            <p className="font-body text-sm text-chalk/70">{guide.note}</p>
           </div>
         )}
 
         {planMeta?.coaching_notes && (
-          <div className="mb-8">
-            <button
-              onClick={() => setShowNotes((s) => !s)}
-              className="font-mono text-xs text-signal underline"
-            >
-              {showNotes ? "Ẩn ghi chú khởi động & tăng tải ▲" : "Xem ghi chú khởi động & tăng tải ▼"}
-            </button>
-            {showNotes && (
-              <div className="training-card p-5 mt-3 whitespace-pre-line font-body text-sm text-chalk/85 leading-relaxed">
-                {planMeta.coaching_notes}
-              </div>
-            )}
+          <div className="training-card p-5 mb-8">
+            <p className="font-mono text-[11px] text-tape tracking-widest mb-1">GHI CHÚ</p>
+            <p className="font-body text-sm text-chalk/90 whitespace-pre-wrap">
+              {planMeta.coaching_notes}
+            </p>
+          </div>
+        )}
+
+        {guide && (
+          <div className="training-card p-5 mb-8">
+            <p className="font-mono text-[11px] text-tape tracking-widest mb-1">HƯỚNG DẪN</p>
+            <p className="font-body text-sm text-chalk/90 mb-2">
+              Mức độ của bạn: <span className="font-bold">{level}</span>
+            </p>
+            <p className="font-body text-sm text-chalk/90 mb-2">{guide.rir}</p>
+            <p className="font-body text-sm text-chalk/70">{guide.note}</p>
           </div>
         )}
 
@@ -542,33 +507,52 @@ export default function DashboardPage() {
           const isComplete = total > 0 && done === total;
           return (
             <div key={day} className="mb-10 relative">
-              <div className="flex items-baseline justify-between mb-4">
+              <div className="flex flex-wrap items-center justify-between gap-3 mb-4">
                 <div className="flex items-center gap-3">
                   <h2 className="stencil text-lg text-steel">{labelForDay(day)}</h2>
                   {isComplete && (
                     <span
-                      className="stamp text-signal text-[9px] w-16 h-16 flex flex-col items-center justify-center text-center gap-0.5 px-1 shrink-0"
+                      className="stamp text-signal text-[9px] w-16 h-16 flex items-center justify-center text-center px-1 shrink-0"
                       style={{ transform: "rotate(-10deg)" }}
                     >
-                      <MedalIcon className="w-4 h-4" />
                       HOÀN THÀNH
                     </span>
                   )}
                 </div>
-                <span className="font-mono text-xs text-steel flex items-center gap-3">
-                  Đã hoàn thành {done}/{total} bài
+                <span className="flex items-center gap-2">
+                  <span className="font-mono text-xs text-steel">
+                    {done}/{total} hoàn thành
+                  </span>
+                  {runningDay === day && startedAt && (
+                    <span className="font-mono text-sm font-bold bg-ink/10 text-ink rounded-full px-3 py-1.5">
+                      ⏱ {formatElapsed(Date.now() - startedAt)}
+                    </span>
+                  )}
+                  {done < total && runningDay !== day && (
+                    <button
+                      onClick={() => startTimer(day)}
+                      className="flex items-center gap-1.5 font-mono text-xs font-bold bg-tape text-ink rounded-full px-4 py-2 shadow-sm hover:brightness-95 transition"
+                    >
+                      ▶ Bắt đầu
+                    </button>
+                  )}
                   {done < total && (
                     <button
                       onClick={() => completeWholeDay(day)}
                       disabled={bulkSaving === day}
-                      className="inline-flex items-center gap-1.5 font-mono text-[11px] text-signal hover:text-tape transition-colors disabled:opacity-40"
+                      className="flex items-center gap-1.5 font-mono text-xs font-bold bg-signal text-chalk rounded-full px-4 py-2 shadow-sm hover:brightness-95 transition disabled:opacity-40"
                     >
-                      <CheckIcon className="w-3.5 h-3.5" />
-                      {bulkSaving === day ? "Đang lưu..." : "Hoàn thành cả buổi"}
+                      {bulkSaving === day ? "Đang lưu..." : "✓ Hoàn thành cả buổi"}
                     </button>
                   )}
                 </span>
               </div>
+
+              {lastSessionReport?.day === day && (
+                <p className="font-mono text-xs text-tape mb-3">
+                  ⏱ Bạn đã tập {lastSessionReport.minutes} phút hôm nay!
+                </p>
+              )}
 
               {(["main", "accessory", "cardio"] as const).map((role) => {
                 const roleRows = rows.filter((r) => r.day_number === day && r.role === role);
@@ -582,35 +566,20 @@ export default function DashboardPage() {
                       {roleRows.map((r) => (
                         <li key={r.id}>
                           <div
-                            className={`flex items-center justify-between border-2 px-5 py-3 transition-colors ${
+                            className={`flex items-center justify-between gap-2 flex-wrap border-2 px-5 py-3 transition-colors ${
                               progress[r.id]
                                 ? "border-signal/40 bg-signal/5"
                                 : "border-ink hover:bg-ink/5"
                             }`}
                           >
-                            <label className="flex-1 flex items-center gap-3 cursor-pointer">
-                              <input
-                                type="checkbox"
-                                checked={!!progress[r.id]}
-                                onChange={() => toggle(r.id)}
-                                className="sr-only peer"
-                              />
-                              <span
-                                className={`relative w-6 h-6 shrink-0 rounded-md border-2 flex items-center justify-center transition-all duration-200 ${
-                                  progress[r.id]
-                                    ? "bg-signal border-signal"
-                                    : "border-steel/40 peer-hover:border-signal/70 peer-focus-visible:border-signal"
-                                }`}
-                              >
-                                <CheckIcon
-                                  className={`w-4 h-4 text-chalk transition-all duration-150 ${
-                                    progress[r.id] ? "scale-100 opacity-100" : "scale-50 opacity-0"
-                                  }`}
-                                />
-                              </span>
-                              <span className="font-body">
-                                {r.exercises?.name}
-                                <span className="font-mono text-xs text-steel ml-3">
+                            <label
+                              className="flex-1 min-w-0 flex items-center gap-3 cursor-pointer"
+                              onClick={() => toggle(r.id)}
+                            >
+                              <CheckBox checked={!!progress[r.id]} onChange={() => toggle(r.id)} />
+                              <span className="font-body min-w-0 flex-1">
+                                <span className="block">{r.exercises?.name}</span>
+                                <span className="block font-mono text-xs text-steel mt-1 whitespace-nowrap">
                                   {r.sets} x {r.reps}
                                   {r.rest_seconds > 0 && ` · nghỉ ${r.rest_seconds}s`}
                                 </span>
@@ -622,8 +591,8 @@ export default function DashboardPage() {
                               onChange={(e) => updateWeightNoteLocal(r.id, e.target.value)}
                               onBlur={() => saveWeightNote(r.id)}
                               onClick={(e) => e.stopPropagation()}
-                              placeholder="Nhập mức tạ"
-                              className="font-mono text-xs w-20 md:w-28 border-b-2 border-steel/30 bg-transparent focus:outline-none focus:border-signal px-1 py-1 mx-3 shrink-0"
+                              placeholder="Mức tạ..."
+                              className="font-mono text-xs w-20 md:w-28 border-b-2 border-steel/30 bg-transparent focus:outline-none focus:border-signal px-1 py-1 shrink-0"
                             />
                             
                             {(r.exercises?.image_url ||
@@ -633,15 +602,9 @@ export default function DashboardPage() {
                                 onClick={() =>
                                   setOpenGuide((cur) => (cur === r.id ? null : r.id))
                                 }
-                                className="inline-flex items-center gap-1.5 font-mono text-xs text-signal hover:text-tape transition-colors ml-4 shrink-0"
+                                className="font-mono text-xs text-signal flex items-center gap-1.5 ml-4 shrink-0"
                               >
-                                <GuideIcon className="w-4 h-4" />
-                                Hướng dẫn
-                                <ChevronIcon
-                                  className={`w-3.5 h-3.5 transition-transform duration-200 ${
-                                    openGuide === r.id ? "rotate-180" : ""
-                                  }`}
-                                />
+                                Hướng dẫn <ChevronIcon open={openGuide === r.id} />
                               </button>
                             )}
                           </div>
