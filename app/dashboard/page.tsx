@@ -4,6 +4,7 @@ import { useEffect, useState, useCallback } from "react";
 import { supabase } from "@/lib/supabase";
 import { calcStreak } from "@/lib/streak";
 import { buildWorkoutIcs, downloadIcs } from "@/lib/ics";
+import { formatElapsed, minutesBetween } from "@/lib/sessionTimer";
 import WeightLog from "@/components/WeightLog";
 import MacroCalculator from "@/components/MacroCalculator";
 import ShareAchievement from "@/components/ShareAchievement";
@@ -90,6 +91,12 @@ export default function DashboardPage() {
   const [openGuide, setOpenGuide] = useState<string | null>(null);
   const [streak, setStreak] = useState(0);
   const [bulkSaving, setBulkSaving] = useState<number | null>(null);
+  const [runningDay, setRunningDay] = useState<number | null>(null);
+  const [startedAt, setStartedAt] = useState<number | null>(null);
+  const [, setTick] = useState(0);
+  const [lastSessionReport, setLastSessionReport] = useState<{ day: number; minutes: number } | null>(
+    null
+  );
 
   const load = useCallback(async () => {
     setLoading(true);
@@ -171,6 +178,20 @@ export default function DashboardPage() {
     return () => clearInterval(interval);
   }, [order, load]);
 
+  // Dong ho song cho buoi dang bam "Bat dau" — chi de ve lai UI moi giay,
+  // khong goi mang.
+  useEffect(() => {
+    if (runningDay === null) return;
+    const interval = setInterval(() => setTick((t) => t + 1), 1000);
+    return () => clearInterval(interval);
+  }, [runningDay]);
+
+  function startTimer(day: number) {
+    setRunningDay(day);
+    setStartedAt(Date.now());
+    setLastSessionReport(null);
+  }
+
   async function toggle(planExerciseId: string) {
     const orderCode = localStorage.getItem("orderCode");
     if (!orderCode) return;
@@ -236,6 +257,23 @@ export default function DashboardPage() {
       })),
       { onConflict: "order_code,plan_exercise_id" }
     );
+
+    // Neu dong ho dang chay cho dung buoi nay, dung lai va ghi tong so phut.
+    if (runningDay === day && startedAt) {
+      const endMs = Date.now();
+      const minutes = minutesBetween(startedAt, endMs);
+      await supabase.from("session_logs").insert({
+        order_code: orderCode,
+        day_number: day,
+        started_at: new Date(startedAt).toISOString(),
+        ended_at: new Date(endMs).toISOString(),
+        minutes,
+      });
+      setLastSessionReport({ day, minutes });
+      setRunningDay(null);
+      setStartedAt(null);
+    }
+
     setBulkSaving(null);
   }
 
@@ -513,6 +551,19 @@ export default function DashboardPage() {
                 </div>
                 <span className="font-mono text-xs text-steel flex items-center gap-3">
                   {done}/{total} hoàn thành
+                  {runningDay === day && startedAt && (
+                    <span className="font-mono text-signal">
+                      ⏱ {formatElapsed(Date.now() - startedAt)}
+                    </span>
+                  )}
+                  {done < total && runningDay !== day && (
+                    <button
+                      onClick={() => startTimer(day)}
+                      className="font-mono text-[11px] text-tape underline"
+                    >
+                      Bắt đầu
+                    </button>
+                  )}
                   {done < total && (
                     <button
                       onClick={() => completeWholeDay(day)}
@@ -524,6 +575,12 @@ export default function DashboardPage() {
                   )}
                 </span>
               </div>
+
+              {lastSessionReport?.day === day && (
+                <p className="font-mono text-xs text-tape mb-3">
+                  ⏱ Bạn đã tập {lastSessionReport.minutes} phút hôm nay!
+                </p>
+              )}
 
               {(["main", "accessory", "cardio"] as const).map((role) => {
                 const roleRows = rows.filter((r) => r.day_number === day && r.role === role);
