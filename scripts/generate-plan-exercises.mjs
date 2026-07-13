@@ -83,24 +83,20 @@ const EQUIPMENT_ALLOW = {
   "full-gym": null, // null = cho phép tất cả
 };
 
-// Nhóm cơ -> bucket Push / Pull / Legs / Core (để chia lịch Upper/Lower, PPL)
-const MUSCLE_BUCKET = {
-  chest: "push",
-  shoulders: "push",
-  triceps: "push",
-  lats: "pull",
-  "middle back": "pull",
-  "lower back": "pull",
-  traps: "pull",
-  biceps: "pull",
-  forearms: "pull",
-  quadriceps: "legs",
-  hamstrings: "legs",
-  glutes: "legs",
-  calves: "legs",
-  abdominals: "core",
-  neck: "core",
-};
+// Nhóm cơ -> bucket Push / Pull / Legs / Core. Dò theo MẪU CHỮ (regex)
+// thay vì so khớp cứng 1 từ duy nhất — vì các nguồn dữ liệu khác nhau đặt
+// tên nhóm cơ khác nhau (vd. free-exercise-db ghi "chest"/"quadriceps",
+// còn omercotkd/exercises-gifs ghi "pectorals"/"quads"/"delts"...). Trước
+// đây so khớp cứng khiến ngực/vai/đùi không khớp tên nào, bị rơi hết vào
+// "core" mặc định, chỉ còn triceps/biceps khớp đúng -> buổi Push/Pull toàn
+// bài tay. Regex bắt được cả 2 kiểu đặt tên, không phụ thuộc nguồn dữ liệu.
+function bucketOf(ex) {
+  const m = (ex.primary_muscle || ex.muscle_group || "").toLowerCase();
+  if (/pector|chest|delt|shoulder|tricep/.test(m)) return "push";
+  if (/\blat|back|rhomboid|trap|levator|bicep|forearm/.test(m)) return "pull";
+  if (/quad|thigh|ham(string)?|glute|calv|abduct|adduct|leg/.test(m)) return "legs";
+  return "core"; // abs, spine, lower back, neck, cardiovascular system...
+}
 
 // PRNG đơn giản, seed theo chuỗi để mỗi plan_id ra một tổ hợp bài ổn định
 // (chạy lại không đổi lịch) nhưng khác nhau giữa các gói -> đa dạng thật sự.
@@ -117,14 +113,31 @@ function seedRandom(str) {
     return (h >>> 0) / 4294967296;
   };
 }
-function pick(arr, n, rng) {
-  const copy = [...arr];
-  const out = [];
-  while (copy.length && out.length < n) {
-    const idx = Math.floor(rng() * copy.length);
-    out.push(copy.splice(idx, 1)[0]);
+// Chọn n bài từ arr, ƯU TIÊN bỏ qua bài có tên đã nằm trong `used` (đã
+// dùng ở buổi khác trong CÙNG tuần của gói này) — để các buổi không lặp
+// bài giống nhau. Nếu nhóm cơ đó không còn đủ bài chưa dùng (thường gặp ở
+// gói bodyweight/ít dụng cụ), mới cho phép lấy lại bài đã dùng để buổi đó
+// không bị thiếu bài tập.
+function pick(arr, n, rng, used) {
+  const fresh = used ? arr.filter((ex) => !used.has(ex.name)) : arr;
+  const pickFrom = (list, count) => {
+    const copy = [...list];
+    const out = [];
+    while (copy.length && out.length < count) {
+      const idx = Math.floor(rng() * copy.length);
+      out.push(copy.splice(idx, 1)[0]);
+    }
+    return out;
+  };
+  const chosen = pickFrom(fresh, n);
+  if (chosen.length < n) {
+    const remaining = n - chosen.length;
+    const usedNames = new Set(chosen.map((ex) => ex.name));
+    const fallback = arr.filter((ex) => !usedNames.has(ex.name));
+    chosen.push(...pickFrom(fallback, remaining));
   }
-  return out;
+  if (used) chosen.forEach((ex) => used.add(ex.name));
+  return chosen;
 }
 
 function filterPool(pool, equipmentTag, levelTag) {
@@ -140,18 +153,15 @@ function filterPool(pool, equipmentTag, levelTag) {
   });
 }
 
-function bucketOf(ex) {
-  return MUSCLE_BUCKET[ex.primary_muscle] || "core";
-}
-
-// Với 1 "buổi" (day), chọn bài theo các bucket mong muốn, ưu tiên
-// exercise.category === 'strength' | 'powerlifting' | 'olympic weightlifting'.
-function buildDay({ pool, buckets, rng, scheme, isCardioFinisher }) {
+// Với 1 "buổi" (day), chọn bài theo các bucket mong muốn. `usedInWeek` là
+// 1 Set dùng chung xuyên suốt các buổi của CÙNG 1 plan_id — đảm bảo các
+// buổi trong tuần không lặp lại y hệt bài của nhau (xem pick() ở trên).
+function buildDay({ pool, buckets, rng, scheme, isCardioFinisher, usedInWeek }) {
   const rows = [];
   let orderIndex = 1;
   for (const { bucket, count, role } of buckets) {
     const candidates = pool.filter((ex) => bucketOf(ex) === bucket && ex.category !== "cardio");
-    const chosen = pick(candidates, count, rng);
+    const chosen = pick(candidates, count, rng, usedInWeek);
     for (const ex of chosen) {
       rows.push({
         exercise_name: ex.name,
@@ -166,7 +176,7 @@ function buildDay({ pool, buckets, rng, scheme, isCardioFinisher }) {
   }
   if (isCardioFinisher) {
     const cardio = pool.filter((ex) => ex.category === "cardio");
-    const chosen = pick(cardio, 1, rng);
+    const chosen = pick(cardio, 1, rng, usedInWeek);
     for (const ex of chosen) {
       rows.push({
         exercise_name: ex.name,
@@ -283,6 +293,7 @@ async function main() {
           const scheme = GOAL_SCHEME[goalTag];
           const rng = seedRandom(planId);
           const pool2 = filterPool(pool, equipmentTag, levelTag);
+          const usedInWeek = new Set(); // reset cho mỗi gói — tránh trùng bài giữa các buổi trong tuần
 
           let dayNumber = 1;
           for (const label of weekLabels) {
@@ -293,6 +304,7 @@ async function main() {
               rng,
               scheme,
               isCardioFinisher: goalTag === "fatloss",
+              usedInWeek,
             });
             for (const r of dayRows) {
               allPlanExerciseRows.push({ ...r, plan_id: planId, day_number: dayNumber, day_label: label });
