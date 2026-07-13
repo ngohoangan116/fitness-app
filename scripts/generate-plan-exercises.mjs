@@ -83,18 +83,24 @@ const EQUIPMENT_ALLOW = {
   "full-gym": null, // null = cho phép tất cả
 };
 
-// Nhóm cơ -> bucket Push / Pull / Legs / Core. Dò theo MẪU CHỮ (regex)
-// thay vì so khớp cứng 1 từ duy nhất — vì các nguồn dữ liệu khác nhau đặt
-// tên nhóm cơ khác nhau (vd. free-exercise-db ghi "chest"/"quadriceps",
-// còn omercotkd/exercises-gifs ghi "pectorals"/"quads"/"delts"...). Trước
-// đây so khớp cứng khiến ngực/vai/đùi không khớp tên nào, bị rơi hết vào
-// "core" mặc định, chỉ còn triceps/biceps khớp đúng -> buổi Push/Pull toàn
-// bài tay. Regex bắt được cả 2 kiểu đặt tên, không phụ thuộc nguồn dữ liệu.
+// Nhóm cơ CHI TIẾT (không chỉ Push/Pull/Legs gộp chung) — để đảm bảo mỗi
+// buổi có ĐỦ từng nhóm cơ con thay vì chọn ngẫu nhiên trong 1 nhóm lớn
+// (trước đây "push" gộp chung ngực+vai+tay sau, random 4 bài có thể ra
+// toàn vai hoặc toàn tay, thiếu ngực — không đúng phương pháp PPL chuẩn).
+// Dò theo MẪU CHỮ (regex) vì các nguồn dữ liệu đặt tên nhóm cơ khác nhau
+// (free-exercise-db: "chest"/"quadriceps"; omercotkd/exercises-gifs:
+// "pectorals"/"quads"/"delts"...).
 function bucketOf(ex) {
   const m = (ex.primary_muscle || ex.muscle_group || "").toLowerCase();
-  if (/pector|chest|delt|shoulder|tricep/.test(m)) return "push";
-  if (/\blat|back|rhomboid|trap|levator|bicep|forearm/.test(m)) return "pull";
-  if (/quad|thigh|ham(string)?|glute|calv|abduct|adduct|leg/.test(m)) return "legs";
+  if (/pector|chest/.test(m)) return "chest";
+  if (/delt|shoulder/.test(m)) return "shoulders";
+  if (/tricep/.test(m)) return "triceps";
+  if (/bicep/.test(m)) return "biceps";
+  if (/\blat|back|rhomboid|trap|levator/.test(m)) return "back";
+  if (/forearm/.test(m)) return "forearms";
+  if (/quad|thigh/.test(m)) return "quads";
+  if (/ham(string)?|glute|abduct|adduct/.test(m)) return "hamsglutes";
+  if (/calv/.test(m)) return "calves";
   return "core"; // abs, spine, lower back, neck, cardiovascular system...
 }
 
@@ -208,33 +214,48 @@ function buildDay({ pool, buckets, rng, scheme, isCardioFinisher, usedInWeek }) 
 // với "push" (ngực/vai), không phải bài phụ.
 const BUCKET_TEMPLATES = {
   "Full Body": [
-    { bucket: "legs", count: 2, role: "main" },
-    { bucket: "push", count: 2, role: "main" },
-    { bucket: "pull", count: 2, role: "main" },
+    { bucket: "quads", count: 1, role: "main" },
+    { bucket: "hamsglutes", count: 1, role: "main" },
+    { bucket: "chest", count: 1, role: "main" },
+    { bucket: "back", count: 1, role: "main" },
+    { bucket: "shoulders", count: 1, role: "accessory" },
+    { bucket: "biceps", count: 1, role: "accessory" },
     { bucket: "core", count: 1, role: "accessory" },
   ],
   Upper: [
-    { bucket: "push", count: 3, role: "main" },
-    { bucket: "pull", count: 3, role: "main" },
+    { bucket: "chest", count: 2, role: "main" },
+    { bucket: "back", count: 2, role: "main" },
+    { bucket: "shoulders", count: 1, role: "accessory" },
+    { bucket: "biceps", count: 1, role: "accessory" },
     { bucket: "core", count: 1, role: "accessory" },
   ],
   Lower: [
-    { bucket: "legs", count: 4, role: "main" },
+    { bucket: "quads", count: 2, role: "main" },
+    { bucket: "hamsglutes", count: 2, role: "main" },
+    { bucket: "calves", count: 1, role: "accessory" },
     { bucket: "core", count: 1, role: "accessory" },
   ],
+  // Push = ngực + vai + tay sau, ĐỦ CẢ 3 chứ không random trong 1 nhóm gộp
+  // — đây chính là chỗ trước đây có thể ra toàn bài vai/tay, thiếu ngực.
   Push: [
-    { bucket: "push", count: 4, role: "main" },
+    { bucket: "chest", count: 2, role: "main" },
+    { bucket: "shoulders", count: 1, role: "main" },
+    { bucket: "triceps", count: 1, role: "accessory" },
     { bucket: "core", count: 1, role: "accessory" },
   ],
   Pull: [
-    { bucket: "pull", count: 4, role: "main" },
+    { bucket: "back", count: 3, role: "main" },
+    { bucket: "biceps", count: 1, role: "accessory" },
     { bucket: "core", count: 1, role: "accessory" },
   ],
   Legs: [
-    { bucket: "legs", count: 4, role: "main" },
+    { bucket: "quads", count: 2, role: "main" },
+    { bucket: "hamsglutes", count: 1, role: "main" },
+    { bucket: "calves", count: 1, role: "accessory" },
     { bucket: "core", count: 1, role: "accessory" },
   ],
 };
+
 
 // Số buổi THẬT trong tuần ứng với mỗi daysTag — khớp đúng lựa chọn ở quiz
 // ("2 buổi" -> 2, "3 buổi" -> 3, "4-5 buổi" -> lấy 5, "6+ buổi" -> 6).
