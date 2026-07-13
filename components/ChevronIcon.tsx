@@ -3,9 +3,7 @@ export default function ChevronIcon({ open }: { open: boolean }) {
     <svg
       viewBox="0 0 24 24"
       fill="none"
-      className={`w-3.5 h-3.5 transition-transform duration-200 ${
-        open ? "rotate-180" : ""
-      }`}
+      className={`w-3.5 h-3.5 chevron-icon ${open ? "is-open" : ""}`}
       aria-hidden="true"
     >
       <path
