@@ -537,20 +537,20 @@ export default function DashboardPage() {
                       {roleRows.map((r) => (
                         <li key={r.id}>
                           <div
-                            className={`flex items-center justify-between border-2 px-5 py-3 transition-colors ${
+                            className={`flex items-center justify-between gap-2 flex-wrap border-2 px-5 py-3 transition-colors ${
                               progress[r.id]
                                 ? "border-signal/40 bg-signal/5"
                                 : "border-ink hover:bg-ink/5"
                             }`}
                           >
                             <label
-                              className="flex-1 flex items-center gap-3 cursor-pointer"
+                              className="flex-1 min-w-0 flex items-center gap-3 cursor-pointer"
                               onClick={() => toggle(r.id)}
                             >
                               <CheckBox checked={!!progress[r.id]} onChange={() => toggle(r.id)} />
-                              <span className="font-body">
-                                {r.exercises?.name}
-                                <span className="font-mono text-xs text-steel ml-3">
+                              <span className="font-body min-w-0 flex-1">
+                                <span className="block">{r.exercises?.name}</span>
+                                <span className="block font-mono text-xs text-steel mt-1 whitespace-nowrap">
                                   {r.sets} x {r.reps}
                                   {r.rest_seconds > 0 && ` · nghỉ ${r.rest_seconds}s`}
                                 </span>
@@ -563,7 +563,7 @@ export default function DashboardPage() {
                               onBlur={() => saveWeightNote(r.id)}
                               onClick={(e) => e.stopPropagation()}
                               placeholder="Mức tạ..."
-                              className="font-mono text-xs w-20 md:w-28 border-b-2 border-steel/30 bg-transparent focus:outline-none focus:border-signal px-1 py-1 mx-3 shrink-0"
+                              className="font-mono text-xs w-20 md:w-28 border-b-2 border-steel/30 bg-transparent focus:outline-none focus:border-signal px-1 py-1 shrink-0"
                             />
                             
                             {(r.exercises?.image_url ||
