@@ -537,7 +537,7 @@ export default function DashboardPage() {
           const isComplete = total > 0 && done === total;
           return (
             <div key={day} className="mb-10 relative">
-              <div className="flex items-baseline justify-between mb-4">
+              <div className="flex flex-wrap items-center justify-between gap-3 mb-4">
                 <div className="flex items-center gap-3">
                   <h2 className="stencil text-lg text-steel">{labelForDay(day)}</h2>
                   {isComplete && (
@@ -549,28 +549,30 @@ export default function DashboardPage() {
                     </span>
                   )}
                 </div>
-                <span className="font-mono text-xs text-steel flex items-center gap-3">
-                  {done}/{total} hoàn thành
+                <span className="flex items-center gap-2">
+                  <span className="font-mono text-xs text-steel">
+                    {done}/{total} hoàn thành
+                  </span>
                   {runningDay === day && startedAt && (
-                    <span className="font-mono text-signal">
+                    <span className="font-mono text-sm font-bold bg-ink/10 text-ink rounded-full px-3 py-1.5">
                       ⏱ {formatElapsed(Date.now() - startedAt)}
                     </span>
                   )}
                   {done < total && runningDay !== day && (
                     <button
                       onClick={() => startTimer(day)}
-                      className="font-mono text-[11px] text-tape underline"
+                      className="flex items-center gap-1.5 font-mono text-xs font-bold bg-tape text-ink rounded-full px-4 py-2 shadow-sm hover:brightness-95 transition"
                     >
-                      Bắt đầu
+                      ▶ Bắt đầu
                     </button>
                   )}
                   {done < total && (
                     <button
                       onClick={() => completeWholeDay(day)}
                       disabled={bulkSaving === day}
-                      className="font-mono text-[11px] text-signal underline disabled:opacity-40"
+                      className="flex items-center gap-1.5 font-mono text-xs font-bold bg-signal text-chalk rounded-full px-4 py-2 shadow-sm hover:brightness-95 transition disabled:opacity-40"
                     >
-                      {bulkSaving === day ? "Đang lưu..." : "Hoàn thành cả buổi"}
+                      {bulkSaving === day ? "Đang lưu..." : "✓ Hoàn thành cả buổi"}
                     </button>
                   )}
                 </span>
