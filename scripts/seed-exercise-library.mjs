@@ -127,7 +127,7 @@ function splitListField(value) {
   return trimmed
     .split(/;|\|/)
     .map((s) => s.replace(/^[\[\]'"]+|[\[\]'"]+$/g, "").trim())
-    .filter(Boolean); rows = Array.from(new Map(rows.map(r => [r.name, r])).values());
+    .filter(Boolean);
 }
 
 function resolveGifUrl(raw) {
@@ -170,7 +170,7 @@ async function main() {
     process.exit(1);
   }
 
-  let rows = dataRows
+  const rows = dataRows
     .map((r) => {
       const name = r[nameCol]?.trim();
       if (!name) return null;
@@ -189,7 +189,7 @@ async function main() {
         source: "omercotkd-exercises-gifs",
       };
     })
-    .filter(Boolean); rows = Array.from(new Map(rows.map(r => [r.name, r])).values());
+    .filter(Boolean);
 
   console.log(`Chuẩn bị upsert ${rows.length} bài (theo tên, không tạo trùng)...`);
 

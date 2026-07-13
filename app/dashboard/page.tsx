@@ -7,9 +7,54 @@ import { buildWorkoutIcs, downloadIcs } from "@/lib/ics";
 import WeightLog from "@/components/WeightLog";
 import MacroCalculator from "@/components/MacroCalculator";
 import ShareAchievement from "@/components/ShareAchievement";
-import CheckBox from "@/components/CheckBox";
-import ChevronIcon from "@/components/ChevronIcon";
-import { FlameIcon, CalendarIcon } from "@/components/Icons";
+
+// Icon SVG gọn, theo đúng nét "stencil" của web (nét dày, bo góc nhẹ) —
+// dùng thay cho checkbox mặc định trình duyệt + ký tự ▼▲ trước đây.
+function CheckIcon({ className = "" }: { className?: string }) {
+  return (
+    <svg viewBox="0 0 24 24" fill="none" className={className} aria-hidden="true">
+      <path
+        d="M5 12.5L9.5 17L19 7"
+        stroke="currentColor"
+        strokeWidth={3}
+        strokeLinecap="round"
+        strokeLinejoin="round"
+      />
+    </svg>
+  );
+}
+function ChevronIcon({ className = "" }: { className?: string }) {
+  return (
+    <svg viewBox="0 0 24 24" fill="none" className={className} aria-hidden="true">
+      <path
+        d="M6 9L12 15L18 9"
+        stroke="currentColor"
+        strokeWidth={2.5}
+        strokeLinecap="round"
+        strokeLinejoin="round"
+      />
+    </svg>
+  );
+}
+function GuideIcon({ className = "" }: { className?: string }) {
+  return (
+    <svg viewBox="0 0 24 24" fill="none" className={className} aria-hidden="true">
+      <circle cx={12} cy={12} r={9} stroke="currentColor" strokeWidth={2} />
+      <path d="M12 11v5.5" stroke="currentColor" strokeWidth={2} strokeLinecap="round" />
+      <circle cx={12} cy={7.6} r={1.15} fill="currentColor" />
+    </svg>
+  );
+}
+function MedalIcon({ className = "" }: { className?: string }) {
+  return (
+    <svg viewBox="0 0 24 24" fill="none" className={className} aria-hidden="true">
+      <circle cx={12} cy={14} r={6} stroke="currentColor" strokeWidth={2} />
+      <path d="M12 10.5l1.1 2.3 2.5.35-1.8 1.75.43 2.5-2.23-1.18-2.23 1.18.43-2.5-1.8-1.75 2.5-.35L12 10.5z" fill="currentColor" />
+      <path d="M9 3.5L7 9M15 3.5L17 9" stroke="currentColor" strokeWidth={2} strokeLinecap="round" />
+    </svg>
+  );
+}
+
 
 type PlanExerciseRow = {
   id: string;
@@ -388,9 +433,7 @@ export default function DashboardPage() {
               <p className="font-mono text-xs text-chalk/60">{planMeta.description}</p>
             )}
             {streak > 0 && (
-              <p className="font-mono text-sm text-tape mt-2 flex items-center gap-1.5">
-                <FlameIcon /> {streak} ngày tập liên tục
-              </p>
+              <p className="font-mono text-sm text-tape mt-2">🔥 {streak} ngày liên tục</p>
             )}
           </div>
           {totalAll > 0 && (
@@ -422,9 +465,9 @@ export default function DashboardPage() {
 
         <button
           onClick={downloadCalendar}
-          className="w-full font-mono text-xs border-2 border-ink px-4 py-3 mb-6 flex items-center justify-center gap-2 hover:bg-ink hover:text-chalk transition-colors"
+          className="w-full font-mono text-xs border-2 border-ink px-4 py-3 mb-6 hover:bg-ink hover:text-chalk transition-colors"
         >
-          <CalendarIcon /> Thêm lịch tập vào Calendar
+          📅 Thêm lịch tập vào Google/Apple Calendar
         </button>
 
         {guide && (
@@ -444,9 +487,9 @@ export default function DashboardPage() {
           <div className="mb-8">
             <button
               onClick={() => setShowNotes((s) => !s)}
-              className="font-mono text-xs text-signal flex items-center gap-1.5"
+              className="font-mono text-xs text-signal underline"
             >
-              Ghi chú khởi động & tăng tải <ChevronIcon open={showNotes} />
+              {showNotes ? "Ẩn ghi chú khởi động & tăng tải ▲" : "Xem ghi chú khởi động & tăng tải ▼"}
             </button>
             {showNotes && (
               <div className="training-card p-5 mt-3 whitespace-pre-line font-body text-sm text-chalk/85 leading-relaxed">
@@ -504,21 +547,23 @@ export default function DashboardPage() {
                   <h2 className="stencil text-lg text-steel">{labelForDay(day)}</h2>
                   {isComplete && (
                     <span
-                      className="stamp text-signal text-[9px] w-16 h-16 flex items-center justify-center text-center px-1 shrink-0"
+                      className="stamp text-signal text-[9px] w-16 h-16 flex flex-col items-center justify-center text-center gap-0.5 px-1 shrink-0"
                       style={{ transform: "rotate(-10deg)" }}
                     >
+                      <MedalIcon className="w-4 h-4" />
                       HOÀN THÀNH
                     </span>
                   )}
                 </div>
                 <span className="font-mono text-xs text-steel flex items-center gap-3">
-                  {done}/{total} hoàn thành
+                  Đã hoàn thành {done}/{total} bài
                   {done < total && (
                     <button
                       onClick={() => completeWholeDay(day)}
                       disabled={bulkSaving === day}
-                      className="font-mono text-[11px] text-signal underline disabled:opacity-40"
+                      className="inline-flex items-center gap-1.5 font-mono text-[11px] text-signal hover:text-tape transition-colors disabled:opacity-40"
                     >
+                      <CheckIcon className="w-3.5 h-3.5" />
                       {bulkSaving === day ? "Đang lưu..." : "Hoàn thành cả buổi"}
                     </button>
                   )}
@@ -543,11 +588,26 @@ export default function DashboardPage() {
                                 : "border-ink hover:bg-ink/5"
                             }`}
                           >
-                            <label
-                              className="flex-1 flex items-center gap-3 cursor-pointer"
-                              onClick={() => toggle(r.id)}
-                            >
-                              <CheckBox checked={!!progress[r.id]} onChange={() => toggle(r.id)} />
+                            <label className="flex-1 flex items-center gap-3 cursor-pointer">
+                              <input
+                                type="checkbox"
+                                checked={!!progress[r.id]}
+                                onChange={() => toggle(r.id)}
+                                className="sr-only peer"
+                              />
+                              <span
+                                className={`relative w-6 h-6 shrink-0 rounded-md border-2 flex items-center justify-center transition-all duration-200 ${
+                                  progress[r.id]
+                                    ? "bg-signal border-signal"
+                                    : "border-steel/40 peer-hover:border-signal/70 peer-focus-visible:border-signal"
+                                }`}
+                              >
+                                <CheckIcon
+                                  className={`w-4 h-4 text-chalk transition-all duration-150 ${
+                                    progress[r.id] ? "scale-100 opacity-100" : "scale-50 opacity-0"
+                                  }`}
+                                />
+                              </span>
                               <span className="font-body">
                                 {r.exercises?.name}
                                 <span className="font-mono text-xs text-steel ml-3">
@@ -562,7 +622,7 @@ export default function DashboardPage() {
                               onChange={(e) => updateWeightNoteLocal(r.id, e.target.value)}
                               onBlur={() => saveWeightNote(r.id)}
                               onClick={(e) => e.stopPropagation()}
-                              placeholder="Mức tạ..."
+                              placeholder="Nhập mức tạ"
                               className="font-mono text-xs w-20 md:w-28 border-b-2 border-steel/30 bg-transparent focus:outline-none focus:border-signal px-1 py-1 mx-3 shrink-0"
                             />
                             
@@ -573,9 +633,15 @@ export default function DashboardPage() {
                                 onClick={() =>
                                   setOpenGuide((cur) => (cur === r.id ? null : r.id))
                                 }
-                                className="font-mono text-xs text-signal flex items-center gap-1.5 ml-4 shrink-0"
+                                className="inline-flex items-center gap-1.5 font-mono text-xs text-signal hover:text-tape transition-colors ml-4 shrink-0"
                               >
-                                Hướng dẫn <ChevronIcon open={openGuide === r.id} />
+                                <GuideIcon className="w-4 h-4" />
+                                Hướng dẫn
+                                <ChevronIcon
+                                  className={`w-3.5 h-3.5 transition-transform duration-200 ${
+                                    openGuide === r.id ? "rotate-180" : ""
+                                  }`}
+                                />
                               </button>
                             )}
                           </div>
