@@ -24,6 +24,9 @@ create unique index if not exists exercises_name_key on exercises (name);
 -- ---------- 2) plan_exercises: rest_seconds + role ----------
 alter table plan_exercises add column if not exists rest_seconds int not null default 60;
 alter table plan_exercises add column if not exists role text not null default 'main';
+-- Tên buổi trong tuần (vd. "Upper", "Push", "Full Body") — hiện trên dashboard
+-- thay vì chỉ "Buổi 1/2/3" chung chung.
+alter table plan_exercises add column if not exists day_label text;
 -- role: 'main' | 'accessory' | 'cardio' (đúng như ROLE_LABEL trong dashboard)
 
 -- workout_plans: mô tả + ghi chú huấn luyện hiển thị trên dashboard

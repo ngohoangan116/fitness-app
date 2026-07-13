@@ -11,6 +11,7 @@ import ShareAchievement from "@/components/ShareAchievement";
 type PlanExerciseRow = {
   id: string;
   day_number: number;
+  day_label: string | null;
   sets: number;
   reps: string;
   rest_seconds: number;
@@ -118,7 +119,7 @@ export default function DashboardPage() {
       const { data: planRows } = await supabase
         .from("plan_exercises")
         .select(
-          "id, day_number, sets, reps, rest_seconds, order_index, role, exercises(name, muscle_group, video_url, image_url, instructions)"
+          "id, day_number, day_label, sets, reps, rest_seconds, order_index, role, exercises(name, muscle_group, video_url, image_url, instructions)"
         )
         .eq("plan_id", orderData.plan_id)
         .order("day_number", { ascending: true })
@@ -240,7 +241,7 @@ export default function DashboardPage() {
     const days = Array.from(new Set(rows.map((r) => r.day_number))).sort((a, b) => a - b);
     const icsDays = days.map((d) => ({
       dayNumber: d,
-      label: `Buổi ${d}`,
+      label: labelForDay(d),
       exerciseNames: rows
         .filter((r) => r.day_number === d)
         .map((r) => r.exercises?.name ?? "")
@@ -328,6 +329,13 @@ export default function DashboardPage() {
 
   const days = Array.from(new Set(rows.map((r) => r.day_number))).sort((a, b) => a - b);
   const guide = level ? LEVEL_GUIDE[level] : null;
+
+  // "Buổi 1 · Upper" nếu có day_label (lịch mới), fallback "Buổi 1" cho
+  // dữ liệu cũ chưa có cột này.
+  function labelForDay(day: number) {
+    const dayLabel = rows.find((r) => r.day_number === day)?.day_label;
+    return dayLabel ? `Buổi ${day} · ${dayLabel}` : `Buổi ${day}`;
+  }
 
   const sinceMs = new Date(order.plan_updated_at ?? order.created_at).getTime();
   const daysSincePlanChange = Math.floor((Date.now() - sinceMs) / (1000 * 60 * 60 * 24));
@@ -488,7 +496,7 @@ export default function DashboardPage() {
             <div key={day} className="mb-10 relative">
               <div className="flex items-baseline justify-between mb-4">
                 <div className="flex items-center gap-3">
-                  <h2 className="stencil text-lg text-steel">Buổi {day}</h2>
+                  <h2 className="stencil text-lg text-steel">{labelForDay(day)}</h2>
                   {isComplete && (
                     <span
                       className="stamp text-signal text-[9px] w-16 h-16 flex items-center justify-center text-center px-1 shrink-0"

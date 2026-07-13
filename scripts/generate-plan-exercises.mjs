@@ -182,56 +182,79 @@ function buildDay({ pool, buckets, rng, scheme, isCardioFinisher }) {
   return rows;
 }
 
-// Sơ đồ bucket cho từng kiểu chia lịch. daysTag chỉ dùng để quyết định
-// Full Body cần mấy biến thể xoay vòng (A/B/C) — tránh lặp y hệt 1 buổi
-// khi tập tần suất cao (4-6 buổi/tuần đốt mỡ).
-function dayTemplatesFor(splitLabel, daysTag) {
-  // Thứ tự bucket trong mỗi mảng dưới đây CHÍNH LÀ thứ tự tập trong buổi
-  // (order_index đi theo thứ tự này) — xếp theo nguyên tắc tập nhóm cơ
-  // lớn/bài compound trước lúc còn sung sức, nhóm cơ nhỏ/bài bổ trợ và
-  // core dồn về cuối. "pull" (lưng/xô) là nhóm cơ CHÍNH ngang với "push"
-  // (ngực/vai) chứ không phải bài phụ — cả hai đều role "main".
-  if (splitLabel === "Full Body") {
-    const base = [
-      { bucket: "legs", count: 2, role: "main" }, // nhóm cơ lớn nhất, tập trước khi còn sung sức
-      { bucket: "push", count: 2, role: "main" },
-      { bucket: "pull", count: 2, role: "main" },
-      { bucket: "core", count: 1, role: "accessory" }, // bụng/core luôn tập cuối
-    ];
-    // rng dùng chung xuyên suốt các buổi (xem seedRandom trong main()) nên
-    // dù lặp lại cùng 1 template, bài cụ thể chọn ra mỗi buổi vẫn khác nhau
-    // — nhân bản template chỉ để tạo đủ số "Buổi" cho khách xoay vòng.
-    const numVariants = daysTag === "6d" ? 3 : daysTag === "4-5d" ? 2 : 1;
-    return Array.from({ length: numVariants }, () => base);
+// ---------- Lịch theo TUẦN — số "buổi" trả về LUÔN khớp đúng số buổi/tuần
+// khách chọn ở quiz (2/3/5/6), không còn kiểu "chỉ soạn 3 mẫu rồi bắt lặp"
+// như trước (đó là lý do khách 5-6 buổi vẫn chỉ thấy 3 thẻ trên dashboard).
+//
+// Cách chia lấy cảm hứng từ 2 nguồn bạn gửi:
+//  - Darebee: tần suất cao, tập toàn thân + tuần hoàn (circuit) khi mục
+//    tiêu là giảm mỡ/sức bền, cường độ tăng dần theo trình độ.
+//  - Nourish Move Love: lịch theo TỪNG NGÀY trong tuần có chủ đề rõ ràng
+//    (không lặp y hệt 1 buổi), có ngày nghỉ/phục hồi chủ động.
+//
+// Thứ tự bucket trong mỗi mảng CHÍNH LÀ thứ tự tập trong buổi (order_index
+// đi theo thứ tự này) — nhóm cơ lớn/bài compound trước lúc còn sung sức,
+// nhóm cơ nhỏ + core dồn về cuối. "pull" (lưng/xô) là nhóm cơ CHÍNH ngang
+// với "push" (ngực/vai), không phải bài phụ.
+const BUCKET_TEMPLATES = {
+  "Full Body": [
+    { bucket: "legs", count: 2, role: "main" },
+    { bucket: "push", count: 2, role: "main" },
+    { bucket: "pull", count: 2, role: "main" },
+    { bucket: "core", count: 1, role: "accessory" },
+  ],
+  Upper: [
+    { bucket: "push", count: 3, role: "main" },
+    { bucket: "pull", count: 3, role: "main" },
+    { bucket: "core", count: 1, role: "accessory" },
+  ],
+  Lower: [
+    { bucket: "legs", count: 4, role: "main" },
+    { bucket: "core", count: 1, role: "accessory" },
+  ],
+  Push: [
+    { bucket: "push", count: 4, role: "main" },
+    { bucket: "core", count: 1, role: "accessory" },
+  ],
+  Pull: [
+    { bucket: "pull", count: 4, role: "main" },
+    { bucket: "core", count: 1, role: "accessory" },
+  ],
+  Legs: [
+    { bucket: "legs", count: 4, role: "main" },
+    { bucket: "core", count: 1, role: "accessory" },
+  ],
+};
+
+// Số buổi THẬT trong tuần ứng với mỗi daysTag — khớp đúng lựa chọn ở quiz
+// ("2 buổi" -> 2, "3 buổi" -> 3, "4-5 buổi" -> lấy 5, "6+ buổi" -> 6).
+const DAYS_PER_WEEK = { "2d": 2, "3d": 3, "4-5d": 5, "6d": 6 };
+
+// Nhãn từng buổi trong tuần theo goalTag + daysTag. Trả về mảng nhãn có
+// độ dài đúng bằng DAYS_PER_WEEK[daysTag] — không còn giới hạn 3 nữa.
+function weekLabelsFor(goalTag, daysTag) {
+  // Darebee-style: mục tiêu Đốt mỡ luôn tập toàn thân + cardio mỗi buổi dù
+  // tần suất cao hay thấp — tần suất cao hơn thì lặp Full Body nhiều buổi
+  // hơn trong tuần (mỗi buổi vẫn chọn bài khác nhau nhờ rng), thay vì tách
+  // nhóm cơ kiểu Upper/Lower/PPL (vốn hợp tăng cơ hơn).
+  if (goalTag === "fatloss") {
+    return Array.from({ length: DAYS_PER_WEEK[daysTag] }, () => "Full Body");
   }
-  if (splitLabel === "Upper / Lower") {
-    return [
-      [
-        { bucket: "push", count: 3, role: "main" }, // ngực/vai trước lúc còn sung sức
-        { bucket: "pull", count: 3, role: "main" }, // lưng/xô — cùng là nhóm cơ chính, KHÔNG phải bài phụ
-        { bucket: "core", count: 1, role: "accessory" },
-      ],
-      [
-        { bucket: "legs", count: 4, role: "main" },
-        { bucket: "core", count: 1, role: "accessory" },
-      ],
-    ];
+  switch (daysTag) {
+    case "2d":
+      return ["Full Body", "Full Body"];
+    case "3d":
+      return ["Full Body", "Full Body", "Full Body"];
+    case "4-5d":
+      // Lịch tuần 5 buổi có chủ đề riêng từng ngày (kiểu lịch tuần
+      // Nourish Move Love) thay vì lặp lại y hệt.
+      return ["Upper", "Lower", "Push", "Pull", "Legs"];
+    case "6d":
+    default:
+      // Push/Pull/Legs lặp 2 vòng/tuần — 6 buổi THẬT, không phải 3 buổi
+      // lặp ngầm như bản cũ.
+      return ["Push", "Pull", "Legs", "Push", "Pull", "Legs"];
   }
-  // Push / Pull / Legs
-  return [
-    [
-      { bucket: "push", count: 4, role: "main" },
-      { bucket: "core", count: 1, role: "accessory" },
-    ],
-    [
-      { bucket: "pull", count: 4, role: "main" },
-      { bucket: "core", count: 1, role: "accessory" },
-    ],
-    [
-      { bucket: "legs", count: 4, role: "main" },
-      { bucket: "core", count: 1, role: "accessory" },
-    ],
-  ];
 }
 
 async function main() {
@@ -256,17 +279,14 @@ async function main() {
       for (const daysTag of DAYS_TAGS) {
         for (const levelTag of LEVEL_TAGS) {
           const planId = `${goalTag}-${equipmentTag}-${daysTag}-${levelTag}`;
-          // Khớp lib/planLogic.ts: "Đốt mỡ" luôn Full Body dù bao nhiêu
-          // buổi/tuần — tần suất cao + cardio mỗi buổi phù hợp đốt mỡ hơn
-          // tách nhóm cơ kiểu Push/Pull/Legs.
-          const splitLabel = goalTag === "fatloss" ? "Full Body" : SPLIT_LABEL_MAP[daysTag];
+          const weekLabels = weekLabelsFor(goalTag, daysTag); // độ dài = đúng số buổi/tuần khách chọn
           const scheme = GOAL_SCHEME[goalTag];
           const rng = seedRandom(planId);
           const pool2 = filterPool(pool, equipmentTag, levelTag);
 
-          const templates = dayTemplatesFor(splitLabel, daysTag);
           let dayNumber = 1;
-          for (const buckets of templates) {
+          for (const label of weekLabels) {
+            const buckets = BUCKET_TEMPLATES[label];
             const dayRows = buildDay({
               pool: pool2,
               buckets,
@@ -275,21 +295,31 @@ async function main() {
               isCardioFinisher: goalTag === "fatloss",
             });
             for (const r of dayRows) {
-              allPlanExerciseRows.push({ ...r, plan_id: planId, day_number: dayNumber });
+              allPlanExerciseRows.push({ ...r, plan_id: planId, day_number: dayNumber, day_label: label });
             }
             dayNumber++;
           }
 
+          const uniqueLabels = [...new Set(weekLabels)];
+          const scheduleSummary =
+            uniqueLabels.length === 1
+              ? `${weekLabels.length} buổi/tuần, tất cả đều ${uniqueLabels[0]}`
+              : `${weekLabels.length} buổi/tuần: ${weekLabels.join(" → ")}`;
+          const restNote =
+            weekLabels.length < 7
+              ? ` · ${7 - weekLabels.length} ngày còn lại nên nghỉ ngơi hoặc vận động nhẹ (đi bộ, giãn cơ).`
+              : "";
+
           planRows.push({
             id: planId,
             name: NAME_MAP[goalTag],
-            description: `Chia lịch ${splitLabel} · dụng cụ: ${
+            description: `${scheduleSummary} · dụng cụ: ${
               equipmentTag === "bodyweight"
                 ? "không cần dụng cụ"
                 : equipmentTag === "home-dumbbell"
                 ? "tạ đơn / dây kháng lực tại nhà"
                 : "đầy đủ máy phòng gym"
-            }${levelTag === "beginner" ? " · đã lược bớt bài phức tạp (olympic/powerlifting) cho người mới" : ""}`,
+            }${levelTag === "beginner" ? " · đã lược bớt bài phức tạp (olympic/powerlifting) cho người mới" : ""}${restNote}`,
             coaching_notes: COACHING_NOTES[goalTag],
           });
         }
@@ -318,6 +348,7 @@ async function main() {
         plan_id: r.plan_id,
         exercise_id: exerciseId,
         day_number: r.day_number,
+        day_label: r.day_label,
         sets: r.sets,
         reps: r.reps,
         rest_seconds: r.rest_seconds,
