@@ -507,22 +507,21 @@ export default function DashboardPage() {
           const isComplete = total > 0 && done === total;
           return (
             <div key={day} className="mb-10 relative">
-              <div className="flex flex-wrap items-center justify-between gap-3 mb-4">
+              <div className="flex items-baseline justify-between mb-4">
                 <div className="flex items-center gap-3">
                   <h2 className="stencil text-lg text-steel">{labelForDay(day)}</h2>
                   {isComplete && (
                     <span
-                      className="stamp text-signal text-[9px] w-16 h-16 flex items-center justify-center text-center px-1 shrink-0"
+                      className="stamp text-signal text-[9px] w-16 h-16 flex flex-col items-center justify-center text-center gap-0.5 px-1 shrink-0"
                       style={{ transform: "rotate(-10deg)" }}
                     >
+                      <MedalIcon className="w-4 h-4" />
                       HOÀN THÀNH
                     </span>
                   )}
                 </div>
-                <span className="flex items-center gap-2">
-                  <span className="font-mono text-xs text-steel">
-                    {done}/{total} hoàn thành
-                  </span>
+                <span className="font-mono text-xs text-steel flex items-center gap-3">
+                  {done}/{total} bài
                   {runningDay === day && startedAt && (
                     <span className="font-mono text-sm font-bold bg-ink/10 text-ink rounded-full px-3 py-1.5">
                       ⏱ {formatElapsed(Date.now() - startedAt)}
@@ -531,7 +530,7 @@ export default function DashboardPage() {
                   {done < total && runningDay !== day && (
                     <button
                       onClick={() => startTimer(day)}
-                      className="flex items-center gap-1.5 font-mono text-xs font-bold bg-tape text-ink rounded-full px-4 py-2 shadow-sm hover:brightness-95 transition"
+                      className="inline-flex items-center gap-1.5 font-mono text-[11px] text-signal hover:text-tape transition-colors"
                     >
                       ▶ Bắt đầu
                     </button>
@@ -540,9 +539,10 @@ export default function DashboardPage() {
                     <button
                       onClick={() => completeWholeDay(day)}
                       disabled={bulkSaving === day}
-                      className="flex items-center gap-1.5 font-mono text-xs font-bold bg-signal text-chalk rounded-full px-4 py-2 shadow-sm hover:brightness-95 transition disabled:opacity-40"
+                      className="inline-flex items-center gap-1.5 font-mono text-[11px] text-signal hover:text-tape transition-colors disabled:opacity-40"
                     >
-                      {bulkSaving === day ? "Đang lưu..." : "✓ Hoàn thành cả buổi"}
+                      <CheckIcon className="w-3.5 h-3.5" />
+                      {bulkSaving === day ? "Đang lưu..." : "Hoàn thành cả buổi"}
                     </button>
                   )}
                 </span>
@@ -566,20 +566,23 @@ export default function DashboardPage() {
                       {roleRows.map((r) => (
                         <li key={r.id}>
                           <div
-                            className={`flex items-center justify-between gap-2 flex-wrap border-2 px-5 py-3 transition-colors ${
+                            className={`flex items-center justify-between border-2 px-5 py-3 transition-colors ${
                               progress[r.id]
                                 ? "border-signal/40 bg-signal/5"
                                 : "border-ink hover:bg-ink/5"
                             }`}
                           >
-                            <label
-                              className="flex-1 min-w-0 flex items-center gap-3 cursor-pointer"
-                              onClick={() => toggle(r.id)}
-                            >
+                            <label className="flex-1 flex items-center gap-3 cursor-pointer">
+                              <input
+                                type="checkbox"
+                                checked={!!progress[r.id]}
+                                onChange={() => toggle(r.id)}
+                                className="sr-only peer"
+                              />
                               <CheckBox checked={!!progress[r.id]} onChange={() => toggle(r.id)} />
-                              <span className="font-body min-w-0 flex-1">
-                                <span className="block">{r.exercises?.name}</span>
-                                <span className="block font-mono text-xs text-steel mt-1 whitespace-nowrap">
+                              <span className="font-body">
+                                {r.exercises?.name}
+                                <span className="font-mono text-xs text-steel ml-3">
                                   {r.sets} x {r.reps}
                                   {r.rest_seconds > 0 && ` · nghỉ ${r.rest_seconds}s`}
                                 </span>
@@ -591,8 +594,8 @@ export default function DashboardPage() {
                               onChange={(e) => updateWeightNoteLocal(r.id, e.target.value)}
                               onBlur={() => saveWeightNote(r.id)}
                               onClick={(e) => e.stopPropagation()}
-                              placeholder="Mức tạ..."
-                              className="font-mono text-xs w-20 md:w-28 border-b-2 border-steel/30 bg-transparent focus:outline-none focus:border-signal px-1 py-1 shrink-0"
+                              placeholder="Nhập mức tạ"
+                              className="font-mono text-xs w-20 md:w-28 border-b-2 border-steel/30 bg-transparent focus:outline-none focus:border-signal px-1 py-1 mx-3 shrink-0"
                             />
                             
                             {(r.exercises?.image_url ||
@@ -602,9 +605,11 @@ export default function DashboardPage() {
                                 onClick={() =>
                                   setOpenGuide((cur) => (cur === r.id ? null : r.id))
                                 }
-                                className="font-mono text-xs text-signal flex items-center gap-1.5 ml-4 shrink-0"
+                                className="inline-flex items-center gap-1.5 font-mono text-xs text-signal hover:text-tape transition-colors ml-4 shrink-0"
                               >
-                                Hướng dẫn <ChevronIcon open={openGuide === r.id} />
+                                <GuideIcon className="w-4 h-4" />
+                                Hướng dẫn
+                                <ChevronIcon open={openGuide === r.id} />
                               </button>
                             )}
                           </div>
@@ -639,5 +644,25 @@ export default function DashboardPage() {
         })}
       </div>
     </main>
+  );
+}
+
+function MedalIcon({ className = "" }: { className?: string }) {
+  return (
+    <svg viewBox="0 0 24 24" fill="none" className={className} aria-hidden="true">
+      <circle cx={12} cy={14} r={6} stroke="currentColor" strokeWidth={2} />
+      <path d="M12 10.5l1.1 2.3 2.5.35-1.8 1.75.43 2.5-2.23-1.18-2.23 1.18.43-2.5-1.8-1.75 2.5-.35L12 10.5z" fill="currentColor" />
+      <path d="M9 3.5L7 9M15 3.5L17 9" stroke="currentColor" strokeWidth={2} strokeLinecap="round" />
+    </svg>
+  );
+}
+
+function GuideIcon({ className = "" }: { className?: string }) {
+  return (
+    <svg viewBox="0 0 24 24" fill="none" className={className} aria-hidden="true">
+      <circle cx={12} cy={12} r={9} stroke="currentColor" strokeWidth={2} />
+      <path d="M12 11v5.5" stroke="currentColor" strokeWidth={2} strokeLinecap="round" />
+      <circle cx={12} cy={7.6} r={1.15} fill="currentColor" />
+    </svg>
   );
 }
