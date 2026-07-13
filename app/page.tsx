@@ -2,6 +2,7 @@ import Link from "next/link";
 import Reveal from "@/components/Reveal";
 import StickyMobileCta from "@/components/StickyMobileCta";
 import Faq from "@/components/Faq";
+import CountUp from "@/components/CountUp";
 
 const TESTIMONIALS = [
   {
@@ -65,7 +66,7 @@ export default function LandingPage() {
             </p>
             <Link
               href="/quiz"
-              className="inline-block btn-signal text-chalk font-display stencil text-sm px-8 py-4"
+              className="inline-block btn-signal text-chalk font-display stencil text-sm px-8 py-4 transition-transform active:scale-[0.97]"
             >
               Bắt đầu bài test →
             </Link>
@@ -77,7 +78,9 @@ export default function LandingPage() {
             </p>
           </div>
 
-          <div className="training-card p-7 rotate-[-3deg] max-w-sm mx-auto md:mx-0">
+          <div className="relative max-w-sm mx-auto md:mx-0">
+            <div className="hero-glow" aria-hidden="true" />
+            <div className="training-card p-7 rotate-[-3deg]">
             <p className="font-mono text-xs text-tape mb-4">BUỔI TẬP 04 · ĐẨY NGỰC</p>
             <ul className="space-y-3 font-mono text-sm">
               <li className="flex justify-between border-b border-line pb-2">
@@ -93,6 +96,7 @@ export default function LandingPage() {
                 <span>Cardio · máy dốc</span><span>15-20 phút</span>
               </li>
             </ul>
+            </div>
           </div>
         </div>
       </section>
@@ -103,14 +107,17 @@ export default function LandingPage() {
       <section className="bg-steel-premium text-chalk">
         <div className="mx-auto max-w-6xl px-6 py-8 grid grid-cols-2 md:grid-cols-4 gap-6 text-center">
           {[
-            ["48", "lộ trình khác nhau"],
-            ["4", "mục tiêu tập luyện"],
-            ["12 phút", "thời gian test trung bình"],
-            ["3", "mức dụng cụ, kể cả không dụng cụ"],
-          ].map(([stat, label]) => (
-            <div key={label}>
-              <p className="font-mono text-2xl md:text-3xl text-tape">{stat}</p>
-              <p className="font-body text-xs text-chalk/70 mt-1">{label}</p>
+            { value: 48, suffix: "", label: "lộ trình khác nhau" },
+            { value: 4, suffix: "", label: "mục tiêu tập luyện" },
+            { value: 12, suffix: " phút", label: "thời gian test trung bình" },
+            { value: 3, suffix: "", label: "mức dụng cụ, kể cả không dụng cụ" },
+          ].map((s) => (
+            <div key={s.label}>
+              <p className="font-mono text-2xl md:text-3xl text-tape">
+                <CountUp value={s.value} suffix={s.suffix} />
+                <span className="blink-cursor">_</span>
+              </p>
+              <p className="font-body text-xs text-chalk/70 mt-1">{s.label}</p>
             </div>
           ))}
         </div>
@@ -145,7 +152,7 @@ export default function LandingPage() {
           <h2 className="stencil text-3xl mb-12">Chọn đúng hướng, không tập lan man</h2>
           <div className="grid sm:grid-cols-2 gap-5">
             {GOALS.map((g) => (
-              <div key={g.code} className="training-card p-6">
+              <div key={g.code} className="training-card hover-lift p-6">
                 <p className="font-mono text-xs text-tape mb-2">{g.code}</p>
                 <h3 className="stencil text-xl mb-2">{g.name}</h3>
                 <p className="font-body text-sm text-chalk/70">{g.desc}</p>
@@ -226,7 +233,7 @@ export default function LandingPage() {
           </h2>
           <Link
             href="/quiz"
-            className="inline-block btn-ink text-chalk font-display stencil text-sm px-8 py-4"
+            className="inline-block btn-ink text-chalk font-display stencil text-sm px-8 py-4 transition-transform active:scale-[0.97]"
           >
             Làm bài test ngay →
           </Link>
