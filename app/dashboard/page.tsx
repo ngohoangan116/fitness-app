@@ -37,6 +37,21 @@ function ChevronIcon({ className = "" }: { className?: string }) {
     </svg>
   );
 }
+function PlayIcon({ className = "" }: { className?: string }) {
+  return (
+    <svg viewBox="0 0 24 24" fill="none" className={className} aria-hidden="true">
+      <path d="M7 4.5v15l13-7.5-13-7.5z" fill="currentColor" />
+    </svg>
+  );
+}
+function ClockIcon({ className = "" }: { className?: string }) {
+  return (
+    <svg viewBox="0 0 24 24" fill="none" className={className} aria-hidden="true">
+      <circle cx={12} cy={12} r={9} stroke="currentColor" strokeWidth={2} />
+      <path d="M12 7v5.5l3.5 2" stroke="currentColor" strokeWidth={2} strokeLinecap="round" strokeLinejoin="round" />
+    </svg>
+  );
+}
 function GuideIcon({ className = "" }: { className?: string }) {
   return (
     <svg viewBox="0 0 24 24" fill="none" className={className} aria-hidden="true">
@@ -377,9 +392,9 @@ export default function DashboardPage() {
       <div className="max-w-xl mx-auto px-6">
         <div className="flex items-center justify-between py-6 mb-6">
           <h1 className="stencil text-3xl text-ink">Dashboard</h1>
-          <div className="flex items-center gap-3">
-            <a href="/quiz" className="inline-flex items-center gap-1.5 font-mono text-xs text-steel hover:text-signal transition-colors"><FlameIcon className="w-4 h-4" />Đổi mục tiêu</a>
-            <button onClick={downloadCalendar} className="inline-flex items-center gap-1.5 font-mono text-xs text-steel hover:text-signal transition-colors"><CalendarIcon className="w-4 h-4" />Xuất lịch</button>
+          <div className="flex items-center gap-2">
+            <a href="/quiz" className="inline-flex items-center gap-1.5 font-mono text-xs text-steel bg-ink/5 hover:bg-ink/10 rounded-full px-3 py-1.5 transition-colors"><FlameIcon className="w-4 h-4" />Đổi mục tiêu</a>
+            <button onClick={downloadCalendar} className="inline-flex items-center gap-1.5 font-mono text-xs text-steel bg-ink/5 hover:bg-ink/10 rounded-full px-3 py-1.5 transition-colors"><CalendarIcon className="w-4 h-4" />Xuất lịch</button>
           </div>
         </div>
 
@@ -415,7 +430,7 @@ export default function DashboardPage() {
           const isComplete = total > 0 && done === total;
           return (
             <div key={day} className="mb-10 relative">
-              <div className="flex items-baseline justify-between mb-4">
+              <div className="flex flex-wrap items-center justify-between gap-3 mb-4">
                 <div className="flex items-center gap-3">
                   <h2 className="stencil text-lg text-steel">{labelForDay(day)}</h2>
                   {isComplete && (
@@ -424,18 +439,36 @@ export default function DashboardPage() {
                     </span>
                   )}
                 </div>
-                <span className="font-mono text-xs text-steel flex items-center gap-3">
-                  Đã hoàn thành {done}/{total} bài
+                <div className="flex items-center gap-2 flex-wrap">
+                  <span className="font-mono text-xs text-steel bg-ink/5 rounded-full px-3 py-1.5">
+                    {done}/{total} bài
+                  </span>
                   {runningDay === day && startedAt && (
-                    <span className="font-mono text-sm font-bold bg-tape text-ink rounded-full px-3 py-1.5">⏱ {formatElapsed(Date.now() - startedAt)}</span>
+                    <span className="inline-flex items-center gap-1.5 font-mono text-sm font-bold bg-tape text-ink rounded-full px-3 py-1.5">
+                      <span className="w-2 h-2 rounded-full bg-signal animate-pulse" />
+                      {formatElapsed(Date.now() - startedAt)}
+                    </span>
                   )}
                   {done < total && runningDay !== day && (
-                    <button onClick={() => startTimer(day)} className="inline-flex items-center gap-1.5 font-mono text-[11px] text-signal hover:text-tape transition-colors">▶ Bắt đầu</button>
+                    <button
+                      onClick={() => startTimer(day)}
+                      className="inline-flex items-center gap-1.5 font-mono text-xs font-bold bg-tape text-ink rounded-full px-4 py-2 shadow-sm hover:brightness-95 transition"
+                    >
+                      <PlayIcon className="w-3.5 h-3.5" />
+                      Bắt đầu
+                    </button>
                   )}
                   {done < total && (
-                    <button onClick={() => completeWholeDay(day)} disabled={bulkSaving === day} className="inline-flex items-center gap-1.5 font-mono text-[11px] text-signal hover:text-tape transition-colors disabled:opacity-40"><CheckIcon className="w-3.5 h-3.5" />{bulkSaving === day ? "..." : "Hoàn thành cả buổi"}</button>
+                    <button
+                      onClick={() => completeWholeDay(day)}
+                      disabled={bulkSaving === day}
+                      className="inline-flex items-center gap-1.5 font-mono text-xs font-bold bg-signal text-chalk rounded-full px-4 py-2 shadow-sm hover:brightness-95 transition disabled:opacity-40"
+                    >
+                      <CheckIcon className="w-3.5 h-3.5" />
+                      {bulkSaving === day ? "Đang lưu..." : "Hoàn thành cả buổi"}
+                    </button>
                   )}
-                </span>
+                </div>
               </div>
 
               {lastSessionReport?.day === day && <p className="font-mono text-xs text-tape mb-3">⏱ Bạn đã tập {lastSessionReport.minutes} phút!</p>}
@@ -445,7 +478,7 @@ export default function DashboardPage() {
                 if (roleRows.length === 0) return null;
                 return (
                   <div key={role} className="mb-4">
-                    <p className="font-mono text-[11px] text-steel/70 tracking-widest mb-2">{ROLE_LABEL[role].toUpperCase()}</p>
+                    <p className="inline-block font-mono text-[11px] font-bold text-steel bg-ink/5 rounded-full px-3 py-1 tracking-widest mb-2">{ROLE_LABEL[role].toUpperCase()}</p>
                     <ul className="space-y-2">
                       {roleRows.map((r) => (
                         <li key={r.id}>
@@ -457,7 +490,7 @@ export default function DashboardPage() {
                             </label>
                             <input type="text" value={weightNotes[r.id] ?? ""} onChange={(e) => updateWeightNoteLocal(r.id, e.target.value)} onBlur={() => saveWeightNote(r.id)} placeholder="Mức tạ" className="font-mono text-xs w-20 md:w-28 border-b-2 border-steel/30 bg-transparent focus:outline-none focus:border-signal px-1 py-1 mx-3 shrink-0" />
                             {(r.exercises?.image_url || r.exercises?.instructions) && (
-                              <button type="button" onClick={() => setOpenGuide((cur) => (cur === r.id ? null : r.id))} className="font-mono text-xs text-signal flex items-center gap-1.5 ml-4 shrink-0">Hướng dẫn <ChevronIcon className={`w-3.5 h-3.5 transition-transform ${openGuide === r.id ? "rotate-180" : ""}`} /></button>
+                              <button type="button" onClick={() => setOpenGuide((cur) => (cur === r.id ? null : r.id))} className="font-mono text-xs text-signal bg-signal/10 hover:bg-signal/15 rounded-full px-3 py-1.5 flex items-center gap-1.5 ml-4 shrink-0 transition-colors">Hướng dẫn <ChevronIcon className={`w-3.5 h-3.5 transition-transform ${openGuide === r.id ? "rotate-180" : ""}`} /></button>
                             )}
                           </div>
                           {openGuide === r.id && (
