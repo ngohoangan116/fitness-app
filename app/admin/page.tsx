@@ -179,6 +179,14 @@ export default function AdminPage() {
                   >
                     {r.trainedToday ? "Đã tập hôm nay" : "Chưa tập hôm nay"}
                   </span>
+                  <a
+                    href={`/admin/edit?order=${encodeURIComponent(r.order_code)}`}
+                    target="_blank"
+                    rel="noopener noreferrer"
+                    className="font-mono text-xs text-signal underline shrink-0 ml-3"
+                  >
+                    Sửa lịch tập →
+                  </a>
                 </div>
               ))}
             </div>
