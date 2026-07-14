@@ -1,7 +1,7 @@
-// Tự soạn lịch tập (workout_plans + plan_exercises) cho TOÀN BỘ 96 tổ hợp
-// plan_id mà lib/planLogic.ts có thể sinh ra (4 mục tiêu × 3 dụng cụ ×
-// 4 mức số buổi/tuần × 2 trình độ beginner/advanced), lấy bài tập từ kho lớn đã seed ở
-// scripts/seed-exercise-library.mjs — thay vì chỉ vài bài mẫu lặp lại.
+// Tự soạn lịch tập (workout_plans + plan_exercises) cho TOÀN BỘ 288 plan_id
+// mà lib/planLogic.ts có thể sinh ra (4 mục tiêu × 3 dụng cụ × 4 mức số
+// buổi/tuần × 2 trình độ beginner/advanced × 3 phiên bản v1/v2/v3), lấy bài
+// tập từ kho lớn đã seed ở scripts/seed-exercise-library.mjs.
 //
 // Chạy SAU khi đã seed kho bài tập:
 //   node scripts/generate-plan-exercises.mjs
@@ -104,6 +104,24 @@ function bucketOf(ex) {
   return "core"; // abs, spine, lower back, neck, cardiovascular system...
 }
 
+// NEW: khi 1 bucket không đủ bài phù hợp (rất hay gặp ở bodyweight: hầu
+// như không có bài "shoulders"/"biceps"/"back" đúng nghĩa không dụng cụ),
+// TRƯỚC ĐÂY code bỏ trống luôn ô đó -> buổi tập bị thiếu hẳn bài (khách
+// báo "chỉ có 2 bài"). Giờ mượn thêm từ nhóm cơ liên quan gần nhất thay vì
+// để trống, để tổng số bài luôn đủ.
+const BUCKET_FALLBACKS = {
+  chest: ["shoulders", "core"],
+  shoulders: ["chest", "core"],
+  triceps: ["chest", "core"],
+  biceps: ["back", "core"],
+  back: ["core"],
+  quads: ["hamsglutes", "core"],
+  hamsglutes: ["quads", "core"],
+  calves: ["quads", "core"],
+  forearms: ["biceps", "core"],
+  core: [],
+};
+
 // PRNG đơn giản, seed theo chuỗi để mỗi plan_id ra một tổ hợp bài ổn định
 // (chạy lại không đổi lịch) nhưng khác nhau giữa các gói -> đa dạng thật sự.
 function seedRandom(str) {
@@ -167,7 +185,23 @@ function buildDay({ pool, buckets, rng, scheme, isCardioFinisher, usedInWeek }) 
   let orderIndex = 1;
   for (const { bucket, count, role } of buckets) {
     const candidates = pool.filter((ex) => bucketOf(ex) === bucket && ex.category !== "cardio");
-    const chosen = pick(candidates, count, rng, usedInWeek);
+    let chosen = pick(candidates, count, rng, usedInWeek);
+
+    // Bucket chính không đủ bài (thường gặp với bodyweight) -> mượn thêm
+    // từ nhóm cơ liên quan thay vì để trống ô đó.
+    if (chosen.length < count) {
+      const chain = BUCKET_FALLBACKS[bucket] || [];
+      for (const fb of chain) {
+        if (chosen.length >= count) break;
+        const already = new Set(chosen.map((ex) => ex.name));
+        const fbCandidates = pool.filter(
+          (ex) => bucketOf(ex) === fb && ex.category !== "cardio" && !already.has(ex.name)
+        );
+        const more = pick(fbCandidates, count - chosen.length, rng, usedInWeek);
+        chosen = chosen.concat(more);
+      }
+    }
+
     for (const ex of chosen) {
       rows.push({
         exercise_name: ex.name,
@@ -288,6 +322,13 @@ function weekLabelsFor(goalTag, daysTag) {
   }
 }
 
+// NEW: mỗi tổ hợp (mục tiêu × dụng cụ × số buổi × trình độ) giờ có 3 PHIÊN
+// BẢN khác nhau (v1/v2/v3) thay vì 1 — để 2 khách trả lời quiz giống hệt
+// nhau không nhận đúng 1 lịch tập y hệt (lib/planLogic.ts sẽ bốc ngẫu
+// nhiên 1 trong 3 khi tạo kết quả). Mỗi variant có seed riêng nên vẫn ổn
+// định khi chạy lại script (idempotent), chỉ khác nhau GIỮA 3 variant.
+const VARIANTS = ["v1", "v2", "v3"];
+
 async function main() {
   console.log("Đang tải kho bài tập từ Supabase...");
   const { data: pool, error: poolErr } = await supabase
@@ -309,52 +350,55 @@ async function main() {
     for (const equipmentTag of EQUIPMENT_TAGS) {
       for (const daysTag of DAYS_TAGS) {
         for (const levelTag of LEVEL_TAGS) {
-          const planId = `${goalTag}-${equipmentTag}-${daysTag}-${levelTag}`;
-          const weekLabels = weekLabelsFor(goalTag, daysTag); // độ dài = đúng số buổi/tuần khách chọn
-          const scheme = GOAL_SCHEME[goalTag];
-          const rng = seedRandom(planId);
-          const pool2 = filterPool(pool, equipmentTag, levelTag);
-          const usedInWeek = new Set(); // reset cho mỗi gói — tránh trùng bài giữa các buổi trong tuần
+          for (const variant of VARIANTS) {
+            const basePlanId = `${goalTag}-${equipmentTag}-${daysTag}-${levelTag}`;
+            const planId = `${basePlanId}-${variant}`;
+            const weekLabels = weekLabelsFor(goalTag, daysTag); // độ dài = đúng số buổi/tuần khách chọn
+            const scheme = GOAL_SCHEME[goalTag];
+            const rng = seedRandom(planId); // seed riêng theo variant -> 3 bản khác nhau thật sự
+            const pool2 = filterPool(pool, equipmentTag, levelTag);
+            const usedInWeek = new Set(); // reset cho mỗi gói — tránh trùng bài giữa các buổi trong tuần
 
-          let dayNumber = 1;
-          for (const label of weekLabels) {
-            const buckets = BUCKET_TEMPLATES[label];
-            const dayRows = buildDay({
-              pool: pool2,
-              buckets,
-              rng,
-              scheme,
-              isCardioFinisher: goalTag === "fatloss",
-              usedInWeek,
-            });
-            for (const r of dayRows) {
-              allPlanExerciseRows.push({ ...r, plan_id: planId, day_number: dayNumber, day_label: label });
+            let dayNumber = 1;
+            for (const label of weekLabels) {
+              const buckets = BUCKET_TEMPLATES[label];
+              const dayRows = buildDay({
+                pool: pool2,
+                buckets,
+                rng,
+                scheme,
+                isCardioFinisher: goalTag === "fatloss",
+                usedInWeek,
+              });
+              for (const r of dayRows) {
+                allPlanExerciseRows.push({ ...r, plan_id: planId, day_number: dayNumber, day_label: label });
+              }
+              dayNumber++;
             }
-            dayNumber++;
+
+            const uniqueLabels = [...new Set(weekLabels)];
+            const scheduleSummary =
+              uniqueLabels.length === 1
+                ? `${weekLabels.length} buổi/tuần, tất cả đều ${uniqueLabels[0]}`
+                : `${weekLabels.length} buổi/tuần: ${weekLabels.join(" → ")}`;
+            const restNote =
+              weekLabels.length < 7
+                ? ` · ${7 - weekLabels.length} ngày còn lại nên nghỉ ngơi hoặc vận động nhẹ (đi bộ, giãn cơ).`
+                : "";
+
+            planRows.push({
+              id: planId,
+              name: NAME_MAP[goalTag],
+              description: `${scheduleSummary} · dụng cụ: ${
+                equipmentTag === "bodyweight"
+                  ? "không cần dụng cụ"
+                  : equipmentTag === "home-dumbbell"
+                  ? "tạ đơn / dây kháng lực tại nhà"
+                  : "đầy đủ máy phòng gym"
+              }${levelTag === "beginner" ? " · đã lược bớt bài phức tạp (olympic/powerlifting) cho người mới" : ""}${restNote}`,
+              coaching_notes: COACHING_NOTES[goalTag],
+            });
           }
-
-          const uniqueLabels = [...new Set(weekLabels)];
-          const scheduleSummary =
-            uniqueLabels.length === 1
-              ? `${weekLabels.length} buổi/tuần, tất cả đều ${uniqueLabels[0]}`
-              : `${weekLabels.length} buổi/tuần: ${weekLabels.join(" → ")}`;
-          const restNote =
-            weekLabels.length < 7
-              ? ` · ${7 - weekLabels.length} ngày còn lại nên nghỉ ngơi hoặc vận động nhẹ (đi bộ, giãn cơ).`
-              : "";
-
-          planRows.push({
-            id: planId,
-            name: NAME_MAP[goalTag],
-            description: `${scheduleSummary} · dụng cụ: ${
-              equipmentTag === "bodyweight"
-                ? "không cần dụng cụ"
-                : equipmentTag === "home-dumbbell"
-                ? "tạ đơn / dây kháng lực tại nhà"
-                : "đầy đủ máy phòng gym"
-            }${levelTag === "beginner" ? " · đã lược bớt bài phức tạp (olympic/powerlifting) cho người mới" : ""}${restNote}`,
-            coaching_notes: COACHING_NOTES[goalTag],
-          });
         }
       }
     }
@@ -401,7 +445,7 @@ async function main() {
   }
 
   console.log(
-    "Xong! Cả 96 gói (4 mục tiêu × 3 dụng cụ × 4 mức buổi/tuần × 2 trình độ) đã có lịch riêng."
+    `Xong! Cả ${planRows.length} gói (4 mục tiêu × 3 dụng cụ × 4 mức buổi/tuần × 2 trình độ × 3 phiên bản) đã có lịch riêng.`
   );
 }
 

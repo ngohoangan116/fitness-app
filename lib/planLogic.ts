@@ -64,7 +64,14 @@ export function recommendPlan(answers: QuizAnswers): PlanResult {
       ? "beginner"
       : "advanced";
 
-  const id = `${goalTag}-${equipmentTag}-${daysTag}-${levelTag}`;
+  // NEW: mỗi tổ hợp giờ có 3 phiên bản bài tập khác nhau (v1/v2/v3) được
+  // soạn sẵn trong database (xem scripts/generate-plan-exercises.mjs).
+  // Bốc ngẫu nhiên 1 trong 3 ở đây — để 2 khách trả lời quiz giống hệt
+  // nhau (vd cùng khu vực, cùng thói quen) không nhận đúng 1 lịch tập y
+  // hệt nhau. Không cần đổi checkout hay thêm cột database nào cả, vì
+  // biến thể đã nằm sẵn trong chuỗi plan_id.
+  const variant = `v${1 + Math.floor(Math.random() * 3)}`;
+  const id = `${goalTag}-${equipmentTag}-${daysTag}-${levelTag}-${variant}`;
 
   const nameMap: Record<string, string> = {
     hypertrophy: "Gói Tăng Cơ",
