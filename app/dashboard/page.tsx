@@ -194,6 +194,10 @@ export default function DashboardPage() {
   const [rows, setRows] = useState<PlanExerciseRow[]>([]);
   const [progress, setProgress] = useState<Record<string, boolean>>({});
   const [weightNotes, setWeightNotes] = useState<Record<string, string>>({});
+  // Ảnh có link (image_url) nhưng file thực tế lỗi/không tải được (404...)
+  // — khác với trường hợp chưa có image_url. Đánh dấu để hiện fallback
+  // giống hệt trường hợp thiếu ảnh, thay vì icon ảnh vỡ xấu xí.
+  const [brokenImages, setBrokenImages] = useState<Record<string, boolean>>({});
   const [loading, setLoading] = useState(true);
   const [level, setLevel] = useState<string | null>(null);
   const [showNotes, setShowNotes] = useState(false);
@@ -535,8 +539,14 @@ export default function DashboardPage() {
                           </div>
                           {openGuide === r.id && (
                             <div className="border-2 border-t-0 border-ink px-5 py-4 bg-ink/5">
-                              {r.exercises?.image_url ? (
-                                <img src={r.exercises.image_url} alt="HD" className="max-w-lg w-full mb-3 border-2 border-ink rounded-lg shadow-lg" style={{ maxHeight: '400px', objectFit: 'contain' }} />
+                              {r.exercises?.image_url && !brokenImages[r.id] ? (
+                                <img
+                                  src={r.exercises.image_url}
+                                  alt="HD"
+                                  className="max-w-lg w-full mb-3 border-2 border-ink rounded-lg shadow-lg"
+                                  style={{ maxHeight: '400px', objectFit: 'contain' }}
+                                  onError={() => setBrokenImages((cur) => ({ ...cur, [r.id]: true }))}
+                                />
                               ) : (
                                 (() => {
                                   const EqIcon = equipmentIconFor(r.exercises?.equipment);

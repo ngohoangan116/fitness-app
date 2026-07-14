@@ -180,11 +180,22 @@ function filterPool(pool, equipmentTag, levelTag) {
 // Với 1 "buổi" (day), chọn bài theo các bucket mong muốn. `usedInWeek` là
 // 1 Set dùng chung xuyên suốt các buổi của CÙNG 1 plan_id — đảm bảo các
 // buổi trong tuần không lặp lại y hệt bài của nhau (xem pick() ở trên).
+// Ưu tiên bài CÓ ảnh minh hoạ — chỉ dùng bài chưa có ảnh khi nhóm đó
+// không còn lựa chọn nào khác (tốt hơn là để trống hẳn 1 bài trong buổi).
+// Chạy `node scripts/backfill-missing-images-wger.mjs` trước để phần lớn
+// bài đều có ảnh, giảm tối đa việc phải rơi vào nhánh dự phòng này.
+function preferWithImage(list) {
+  const withImage = list.filter((ex) => ex.image_url);
+  return withImage.length > 0 ? withImage : list;
+}
+
 function buildDay({ pool, buckets, rng, scheme, isCardioFinisher, usedInWeek }) {
   const rows = [];
   let orderIndex = 1;
   for (const { bucket, count, role } of buckets) {
-    const candidates = pool.filter((ex) => bucketOf(ex) === bucket && ex.category !== "cardio");
+    const candidates = preferWithImage(
+      pool.filter((ex) => bucketOf(ex) === bucket && ex.category !== "cardio")
+    );
     let chosen = pick(candidates, count, rng, usedInWeek);
 
     // Bucket chính không đủ bài (thường gặp với bodyweight) -> mượn thêm
@@ -194,8 +205,8 @@ function buildDay({ pool, buckets, rng, scheme, isCardioFinisher, usedInWeek }) 
       for (const fb of chain) {
         if (chosen.length >= count) break;
         const already = new Set(chosen.map((ex) => ex.name));
-        const fbCandidates = pool.filter(
-          (ex) => bucketOf(ex) === fb && ex.category !== "cardio" && !already.has(ex.name)
+        const fbCandidates = preferWithImage(
+          pool.filter((ex) => bucketOf(ex) === fb && ex.category !== "cardio" && !already.has(ex.name))
         );
         const more = pick(fbCandidates, count - chosen.length, rng, usedInWeek);
         chosen = chosen.concat(more);
@@ -215,7 +226,7 @@ function buildDay({ pool, buckets, rng, scheme, isCardioFinisher, usedInWeek }) 
     }
   }
   if (isCardioFinisher) {
-    const cardio = pool.filter((ex) => ex.category === "cardio");
+    const cardio = preferWithImage(pool.filter((ex) => ex.category === "cardio"));
     const chosen = pick(cardio, 1, rng, usedInWeek);
     for (const ex of chosen) {
       rows.push({
@@ -333,7 +344,7 @@ async function main() {
   console.log("Đang tải kho bài tập từ Supabase...");
   const { data: pool, error: poolErr } = await supabase
     .from("exercises")
-    .select("id, name, equipment, category, primary_muscle, level");
+    .select("id, name, equipment, category, primary_muscle, level, image_url");
   if (poolErr) throw poolErr;
   if (!pool || pool.length < 50) {
     console.error(

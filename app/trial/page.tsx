@@ -49,6 +49,7 @@ function TrialPageInner() {
   const [unlockedRows, setUnlockedRows] = useState<PlanExerciseRow[]>([]);
   const [totalDays, setTotalDays] = useState(0);
   const [checked, setChecked] = useState<Record<string, boolean>>({});
+  const [brokenImages, setBrokenImages] = useState<Record<string, boolean>>({});
   const [openGuide, setOpenGuide] = useState<string | null>(null);
 
   const load = useCallback(async () => {
@@ -193,12 +194,13 @@ function TrialPageInner() {
                         </div>
                         {openGuide === r.id && (
                           <div className="border-2 border-t-0 border-ink px-5 py-4 bg-ink/5">
-                            {r.exercises?.image_url ? (
+                            {r.exercises?.image_url && !brokenImages[r.id] ? (
                               /* eslint-disable-next-line @next/next/no-img-element */
                               <img
                                 src={r.exercises.image_url}
                                 alt={r.exercises?.name ?? "Hướng dẫn bài tập"}
                                 className="max-w-xs mb-3 border-2 border-ink"
+                                onError={() => setBrokenImages((cur) => ({ ...cur, [r.id]: true }))}
                               />
                             ) : (
                               (() => {
