@@ -52,6 +52,32 @@ function ClockIcon({ className = "" }: { className?: string }) {
     </svg>
   );
 }
+function DumbbellIcon({ className = "" }: { className?: string }) {
+  return (
+    <svg viewBox="0 0 24 24" fill="none" className={className} aria-hidden="true">
+      <rect x="1" y="9" width="3" height="6" rx="1" fill="currentColor" />
+      <rect x="20" y="9" width="3" height="6" rx="1" fill="currentColor" />
+      <rect x="5" y="7" width="2.5" height="10" rx="1" fill="currentColor" />
+      <rect x="16.5" y="7" width="2.5" height="10" rx="1" fill="currentColor" />
+      <path d="M7.5 12h9" stroke="currentColor" strokeWidth={2.5} strokeLinecap="round" />
+    </svg>
+  );
+}
+function TargetIcon({ className = "" }: { className?: string }) {
+  return (
+    <svg viewBox="0 0 24 24" fill="none" className={className} aria-hidden="true">
+      <circle cx={12} cy={12} r={8} stroke="currentColor" strokeWidth={2} />
+      <circle cx={12} cy={12} r={3} fill="currentColor" />
+    </svg>
+  );
+}
+function PulseIcon({ className = "" }: { className?: string }) {
+  return (
+    <svg viewBox="0 0 24 24" fill="none" className={className} aria-hidden="true">
+      <path d="M3 12h4l2-6 4 12 2-6h6" stroke="currentColor" strokeWidth={2} strokeLinecap="round" strokeLinejoin="round" />
+    </svg>
+  );
+}
 function GuideIcon({ className = "" }: { className?: string }) {
   return (
     <svg viewBox="0 0 24 24" fill="none" className={className} aria-hidden="true">
@@ -128,6 +154,14 @@ const ROLE_LABEL: Record<string, string> = {
   main: "Bài chính",
   accessory: "Bài phụ",
   cardio: "Cardio",
+};
+
+// Mau sac + icon rieng cho tung loai bai tap, giup phan biet nhanh
+// bang mat thay vi chi doc chu.
+const ROLE_STYLE: Record<string, { Icon: (p: { className?: string }) => JSX.Element; badgeBg: string; badgeText: string; accentBg: string }> = {
+  main: { Icon: DumbbellIcon, badgeBg: "bg-signal/10", badgeText: "text-signal", accentBg: "bg-signal" },
+  accessory: { Icon: TargetIcon, badgeBg: "bg-steel/15", badgeText: "text-steel", accentBg: "bg-steel" },
+  cardio: { Icon: PulseIcon, badgeBg: "bg-tape/25", badgeText: "text-ink", accentBg: "bg-tape" },
 };
 
 const LEVEL_GUIDE: Record<string, { rir: string; note: string }> = {
@@ -393,8 +427,8 @@ export default function DashboardPage() {
         <div className="flex items-center justify-between py-6 mb-6">
           <h1 className="stencil text-3xl text-ink">Dashboard</h1>
           <div className="flex items-center gap-2">
-            <a href="/quiz" className="inline-flex items-center gap-1.5 font-mono text-xs text-steel bg-ink/5 hover:bg-ink/10 rounded-full px-3 py-1.5 transition-colors"><FlameIcon className="w-4 h-4" />Đổi mục tiêu</a>
-            <button onClick={downloadCalendar} className="inline-flex items-center gap-1.5 font-mono text-xs text-steel bg-ink/5 hover:bg-ink/10 rounded-full px-3 py-1.5 transition-colors"><CalendarIcon className="w-4 h-4" />Xuất lịch</button>
+            <a href="/quiz" className="inline-flex items-center gap-1.5 font-mono text-xs text-signal bg-signal/10 hover:bg-signal/15 rounded-full px-3 py-1.5 transition-colors"><FlameIcon className="w-4 h-4" />Đổi mục tiêu</a>
+            <button onClick={downloadCalendar} className="inline-flex items-center gap-1.5 font-mono text-xs text-ink bg-tape/25 hover:bg-tape/35 rounded-full px-3 py-1.5 transition-colors"><CalendarIcon className="w-4 h-4" />Xuất lịch</button>
           </div>
         </div>
 
@@ -432,6 +466,7 @@ export default function DashboardPage() {
             <div key={day} className="mb-10 relative">
               <div className="flex flex-wrap items-center justify-between gap-3 mb-4">
                 <div className="flex items-center gap-3">
+                  <span className="w-8 h-8 rounded-full bg-ink text-chalk font-mono text-sm font-bold flex items-center justify-center shrink-0">{day}</span>
                   <h2 className="stencil text-lg text-steel">{labelForDay(day)}</h2>
                   {isComplete && (
                     <span className="stamp text-signal text-[9px] w-16 h-16 flex flex-col items-center justify-center text-center gap-0.5 px-1 shrink-0" style={{ transform: "rotate(-10deg)" }}>
@@ -476,13 +511,18 @@ export default function DashboardPage() {
               {(["main", "accessory", "cardio"] as const).map((role) => {
                 const roleRows = rows.filter((r) => r.day_number === day && r.role === role);
                 if (roleRows.length === 0) return null;
+                const RoleIcon = ROLE_STYLE[role].Icon;
                 return (
                   <div key={role} className="mb-4">
-                    <p className="inline-block font-mono text-[11px] font-bold text-steel bg-ink/5 rounded-full px-3 py-1 tracking-widest mb-2">{ROLE_LABEL[role].toUpperCase()}</p>
+                    <p className={`inline-flex items-center gap-1.5 font-mono text-[11px] font-bold ${ROLE_STYLE[role].badgeText} ${ROLE_STYLE[role].badgeBg} rounded-full px-3 py-1 tracking-widest mb-2`}>
+                      <RoleIcon className="w-3.5 h-3.5" />
+                      {ROLE_LABEL[role].toUpperCase()}
+                    </p>
                     <ul className="space-y-2">
                       {roleRows.map((r) => (
                         <li key={r.id}>
-                          <div className={`flex items-center justify-between border-2 px-5 py-3 transition-colors ${progress[r.id] ? "border-signal/40 bg-signal/5" : "border-ink hover:bg-ink/5"}`}>
+                          <div className={`relative overflow-hidden flex items-center justify-between border-2 pl-6 pr-5 py-3 transition-colors ${progress[r.id] ? "border-signal/40 bg-signal/5" : "border-ink hover:bg-ink/5"}`}>
+                            <span className={`absolute left-0 top-0 bottom-0 w-1.5 ${ROLE_STYLE[role].accentBg}`} aria-hidden="true" />
                             <label className="flex-1 flex items-center gap-3 cursor-pointer">
                               <input type="checkbox" checked={!!progress[r.id]} onChange={() => toggle(r.id)} className="sr-only peer" />
                               <span className={`relative w-6 h-6 shrink-0 rounded-md border-2 flex items-center justify-center transition-all duration-200 ${progress[r.id] ? "bg-signal border-signal" : "border-steel/40 peer-hover:border-signal/70"}`}><CheckIcon className={`w-4 h-4 text-chalk transition-all ${progress[r.id] ? "scale-100 opacity-100" : "scale-50 opacity-0"}`} /></span>
