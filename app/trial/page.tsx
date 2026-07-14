@@ -4,6 +4,7 @@ import { Suspense, useEffect, useState, useCallback } from "react";
 import { useSearchParams } from "next/navigation";
 import Link from "next/link";
 import { supabase } from "@/lib/supabase";
+import { equipmentIconFor } from "@/components/EquipmentIcon";
 
 // So buoi duoc dung thu MIEN PHI — chinh o day de doi 1 hoac 2 tuy y.
 const TRIAL_DAYS = 2;
@@ -22,6 +23,7 @@ type PlanExerciseRow = {
     video_url: string | null;
     image_url: string | null;
     instructions: string[] | null;
+    equipment: string | null;
   } | null;
 };
 
@@ -80,7 +82,7 @@ function TrialPageInner() {
       const { data: fullRows } = await supabase
         .from("plan_exercises")
         .select(
-          "id, day_number, sets, reps, rest_seconds, order_index, role, exercises(name, muscle_group, video_url, image_url, instructions)"
+          "id, day_number, sets, reps, rest_seconds, order_index, role, exercises(name, muscle_group, video_url, image_url, instructions, equipment)"
         )
         .eq("plan_id", planId)
         .in("day_number", unlockedDayNumbers)
@@ -179,35 +181,49 @@ function TrialPageInner() {
                               </span>
                             </span>
                           </label>
-                          {(r.exercises?.image_url ||
-                            (r.exercises?.instructions && r.exercises.instructions.length > 0)) && (
-                            <button
-                              type="button"
-                              onClick={() =>
-                                setOpenGuide((cur) => (cur === r.id ? null : r.id))
-                              }
-                              className="font-mono text-xs text-signal underline ml-4 shrink-0"
-                            >
-                              {openGuide === r.id ? "Ẩn hướng dẫn ▲" : "Xem hướng dẫn ▼"}
-                            </button>
-                          )}
+                          <button
+                            type="button"
+                            onClick={() =>
+                              setOpenGuide((cur) => (cur === r.id ? null : r.id))
+                            }
+                            className="font-mono text-xs text-signal underline ml-4 shrink-0"
+                          >
+                            {openGuide === r.id ? "Ẩn hướng dẫn ▲" : "Xem hướng dẫn ▼"}
+                          </button>
                         </div>
                         {openGuide === r.id && (
                           <div className="border-2 border-t-0 border-ink px-5 py-4 bg-ink/5">
-                            {r.exercises?.image_url && (
+                            {r.exercises?.image_url ? (
                               /* eslint-disable-next-line @next/next/no-img-element */
                               <img
                                 src={r.exercises.image_url}
                                 alt={r.exercises?.name ?? "Hướng dẫn bài tập"}
                                 className="max-w-xs mb-3 border-2 border-ink"
                               />
+                            ) : (
+                              (() => {
+                                const EqIcon = equipmentIconFor(r.exercises?.equipment);
+                                return (
+                                  <div className="flex flex-col items-center justify-center gap-2 py-6 mb-3 border-2 border-dashed border-steel/30 max-w-xs text-steel">
+                                    <EqIcon className="text-steel/60" />
+                                    <p className="font-mono text-[11px] text-steel/70 text-center px-3">
+                                      Ảnh minh hoạ riêng cho bài này đang được cập nhật
+                                    </p>
+                                  </div>
+                                );
+                              })()
                             )}
-                            {r.exercises?.instructions && r.exercises.instructions.length > 0 && (
+                            {r.exercises?.instructions && r.exercises.instructions.length > 0 ? (
                               <ol className="list-decimal list-inside space-y-1.5 font-body text-sm text-steel">
                                 {r.exercises.instructions.map((step, i) => (
                                   <li key={i}>{step}</li>
                                 ))}
                               </ol>
+                            ) : (
+                              <p className="font-body text-sm text-steel/70 italic">
+                                Chưa có hướng dẫn từng bước chi tiết cho bài này — tập theo tên bài
+                                và mức tạ/số lần đã ghi ở trên.
+                              </p>
                             )}
                           </div>
                         )}

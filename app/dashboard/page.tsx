@@ -8,6 +8,7 @@ import { formatElapsed, minutesBetween } from "@/lib/sessionTimer";
 import WeightLog from "@/components/WeightLog";
 import MacroCalculator from "@/components/MacroCalculator";
 import ShareAchievement from "@/components/ShareAchievement";
+import { equipmentIconFor } from "@/components/EquipmentIcon";
 
 // Icon SVG gọn, theo đúng nét "stencil" của web (nét dày, bo góc nhẹ) —
 // dùng thay cho checkbox mặc định trình duyệt + ký tự ▼▲ trước đây.
@@ -130,6 +131,7 @@ type PlanExerciseRow = {
     video_url: string | null;
     image_url: string | null;
     instructions: string[] | null;
+    equipment: string | null;
   } | null;
 };
 
@@ -233,7 +235,7 @@ export default function DashboardPage() {
     if (orderData?.status === "paid") {
       const { data: planRows } = await supabase
         .from("plan_exercises")
-        .select("id, day_number, day_label, sets, reps, rest_seconds, order_index, role, exercises(name, muscle_group, video_url, image_url, instructions)")
+        .select("id, day_number, day_label, sets, reps, rest_seconds, order_index, role, exercises(name, muscle_group, video_url, image_url, instructions, equipment)")
         .eq("plan_id", orderData.plan_id)
         .order("day_number", { ascending: true })
         .order("order_index", { ascending: true });
@@ -529,14 +531,28 @@ export default function DashboardPage() {
                               <span className="font-body text-ink">{r.exercises?.name}<span className="font-mono text-xs text-steel ml-3">{r.sets} x {r.reps}{r.rest_seconds > 0 && ` · nghỉ ${r.rest_seconds}s`}</span></span>
                             </label>
                             <input type="text" value={weightNotes[r.id] ?? ""} onChange={(e) => updateWeightNoteLocal(r.id, e.target.value)} onBlur={() => saveWeightNote(r.id)} placeholder="Mức tạ" className="font-mono text-xs w-20 md:w-28 border-b-2 border-steel/30 bg-transparent focus:outline-none focus:border-signal px-1 py-1 mx-3 shrink-0" />
-                            {(r.exercises?.image_url || r.exercises?.instructions) && (
-                              <button type="button" onClick={() => setOpenGuide((cur) => (cur === r.id ? null : r.id))} className="font-mono text-xs text-signal bg-signal/10 hover:bg-signal/15 rounded-full px-3 py-1.5 flex items-center gap-1.5 ml-4 shrink-0 transition-colors">Hướng dẫn <ChevronIcon className={`w-3.5 h-3.5 transition-transform ${openGuide === r.id ? "rotate-180" : ""}`} /></button>
-                            )}
+                            <button type="button" onClick={() => setOpenGuide((cur) => (cur === r.id ? null : r.id))} className="font-mono text-xs text-signal bg-signal/10 hover:bg-signal/15 rounded-full px-3 py-1.5 flex items-center gap-1.5 ml-4 shrink-0 transition-colors">Hướng dẫn <ChevronIcon className={`w-3.5 h-3.5 transition-transform ${openGuide === r.id ? "rotate-180" : ""}`} /></button>
                           </div>
                           {openGuide === r.id && (
                             <div className="border-2 border-t-0 border-ink px-5 py-4 bg-ink/5">
-                              {r.exercises?.image_url && <img src={r.exercises.image_url} alt="HD" className="max-w-lg w-full mb-3 border-2 border-ink rounded-lg shadow-lg" style={{ maxHeight: '400px', objectFit: 'contain' }} />}
-                              {r.exercises?.instructions && <ol className="list-decimal list-inside space-y-1.5 font-body text-sm text-steel">{r.exercises.instructions.map((step, i) => <li key={i}>{step}</li>)}</ol>}
+                              {r.exercises?.image_url ? (
+                                <img src={r.exercises.image_url} alt="HD" className="max-w-lg w-full mb-3 border-2 border-ink rounded-lg shadow-lg" style={{ maxHeight: '400px', objectFit: 'contain' }} />
+                              ) : (
+                                (() => {
+                                  const EqIcon = equipmentIconFor(r.exercises?.equipment);
+                                  return (
+                                    <div className="flex flex-col items-center justify-center gap-2 py-6 mb-3 border-2 border-dashed border-steel/30 rounded-lg text-steel">
+                                      <EqIcon className="text-steel/60" />
+                                      <p className="font-mono text-[11px] text-steel/70">Ảnh minh hoạ riêng cho bài này đang được cập nhật</p>
+                                    </div>
+                                  );
+                                })()
+                              )}
+                              {r.exercises?.instructions ? (
+                                <ol className="list-decimal list-inside space-y-1.5 font-body text-sm text-steel">{r.exercises.instructions.map((step, i) => <li key={i}>{step}</li>)}</ol>
+                              ) : (
+                                <p className="font-body text-sm text-steel/70 italic">Chưa có hướng dẫn từng bước chi tiết cho bài này — tập theo tên bài và mức tạ/số lần đã ghi ở trên.</p>
+                              )}
                             </div>
                           )}
                         </li>
